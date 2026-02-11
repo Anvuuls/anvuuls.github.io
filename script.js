@@ -10,7 +10,24 @@ const photos = [
   "photos/pic1.jpg",
   "photos/pic2.jpg",
   "photos/pic3.jpg",
-  "photos/pic4.jpg"
+  "photos/pic4.jpg",
+  "photos/pic5.jpg",
+  "photos/pic6.jpg",
+  "photos/pic7.jpg",
+  "photos/pic8.jpg",
+  "photos/pic9.jpg",
+  "photos/pic10.jpg",
+  "photos/pic11.jpg",
+  "photos/pic12.jpg",
+  "photos/pic13.jpg",
+  "photos/pic14.jpg",
+  "photos/pic15.jpg",
+  "photos/pic16.jpg",
+  "photos/pic17.jpg",
+  "photos/pic18.jpg",
+  "photos/pic19.jpg",
+  "photos/pic20.jpg",
+  "photos/pic21.jpg"
 ];
 
 let currentPhoto = 0;
