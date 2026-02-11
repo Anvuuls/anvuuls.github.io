@@ -5,6 +5,7 @@ const message = document.getElementById("message");
 const gallery = document.getElementById("gallery");
 const photo = document.getElementById("photo");
 const music = document.getElementById("music");
+music.volume = 0.7;
 
 const photos = [
   "photos/pic1.jpg",
@@ -57,8 +58,8 @@ yesBigBtn.onclick = () => {
     // Play music after user interaction (mobile-safe)
     music.currentTime = 0;
     music.play().catch(() => {
-      console.log("Autoplay blocked until user interacts");
-    });
+  console.log("Music blocked until another tap");
+  });
   }, 6000);
 };
 
