@@ -46,12 +46,20 @@ yesBigBtn.onclick = () => {
   buttons.style.display = "none";
   message.textContent = "you chose correctly, my precious love";
 
+  // Remove the main question
+  document.getElementById("question").style.display = "none";
+
   setTimeout(() => {
-  message.textContent = "";
-  gallery.classList.remove("hidden");
-  photo.src = photos[currentPhoto];
-  music.play();
-}, 6000);
+    message.textContent = "";
+    gallery.classList.remove("hidden");
+    photo.src = photos[currentPhoto];
+
+    // Play music after user interaction (mobile-safe)
+    music.currentTime = 0;
+    music.play().catch(() => {
+      console.log("Autoplay blocked until user interacts");
+    });
+  }, 6000);
 };
 
 // Swipe logic
