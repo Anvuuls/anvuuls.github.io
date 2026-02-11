@@ -25,8 +25,8 @@ body {
 }
 
 h1 {
-  font-size: 3rem;
-  margin-bottom: 20px;
+  font-size: clamp(1.8rem, 6vw, 2.5rem);
+  margin-bottom: 16px;
 }
 
 #buttons button {
@@ -55,10 +55,10 @@ h1 {
 }
 
 #gallery img {
-  width: 80vw;
-  max-width: 320px;
-  height: 80vw;
-  max-height: 320px;
+  width: 85vw;
+  max-width: 300px;
+  height: 85vw;
+  max-height: 300px;
   object-fit: cover;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
