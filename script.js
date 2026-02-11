@@ -44,22 +44,28 @@ noBtn.onclick = () => {
 };
 
 yesBigBtn.onclick = () => {
+  // Instantly hide question + buttons
+  const q = document.getElementById("question");
+  if (q) q.style.display = "none";
   buttons.style.display = "none";
+
   message.textContent = "you chose correctly, my precious love";
 
-  // Remove the main question
-  document.getElementById("question").style.display = "none";
+  // Force audio to be primed by user gesture
+  music.muted = false;
+  music.currentTime = 0;
 
   setTimeout(() => {
     message.textContent = "";
     gallery.classList.remove("hidden");
     photo.src = photos[currentPhoto];
 
-    // Play music after user interaction (mobile-safe)
-    music.currentTime = 0;
-    music.play().catch(() => {
-  console.log("Music blocked until another tap");
-  });
+    // Try playing music again (mobile-safe pattern)
+    music.play().then(() => {
+      console.log("Music started");
+    }).catch(err => {
+      console.log("Music blocked, waiting for next tap", err);
+    });
   }, 6000);
 };
 
@@ -88,6 +94,21 @@ function nextPhoto() {
     message.textContent = "I can’t wait for all the years ahead with you. I love you more than I can explain.";
   }
 }
+
+let musicStarted = false;
+
+function tryStartMusic() {
+  if (musicStarted) return;
+  music.play().then(() => {
+    musicStarted = true;
+  }).catch(() => {});
+}
+
+// Call when YES! is clicked
+yesBigBtn.addEventListener("click", tryStartMusic);
+
+// Call when photo is clicked (backup)
+photo.addEventListener("click", tryStartMusic);
 
 // Floating hearts with K and G
 const heartsContainer = document.getElementById("hearts-container");
