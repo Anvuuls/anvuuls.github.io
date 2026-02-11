@@ -1,1 +1,105 @@
+body {
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(135deg, #ff5f9e, #ff8fab);
+  overflow: hidden;
+  font-family: 'Arial', sans-serif;
+  color: white;
+}
 
+#main {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+h1 {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+
+#buttons button {
+  font-size: 1.5rem;
+  padding: 12px 30px;
+  margin: 10px;
+  border-radius: 30px;
+  border: none;
+  cursor: pointer;
+  background: white;
+  color: #ff3d7f;
+  transition: transform 0.2s;
+}
+
+#buttons button:hover {
+  transform: scale(1.1);
+}
+
+#message {
+  font-size: 2rem;
+  margin-top: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+#gallery img {
+  width: 280px;
+  height: auto;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+#gallery p {
+  margin-top: 10px;
+  font-size: 1.2rem;
+}
+
+/* Floating hearts */
+.heart {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: red;
+  transform: rotate(45deg);
+  animation: float 10s linear infinite;
+}
+
+.heart::before,
+.heart::after {
+  content: "";
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: red;
+  border-radius: 50%;
+}
+
+.heart::before {
+  top: -25px;
+  left: 0;
+}
+
+.heart::after {
+  left: -25px;
+  top: 0;
+}
+
+.heart span {
+  position: absolute;
+  color: white;
+  font-weight: bold;
+  top: 12px;
+  left: 18px;
+  transform: rotate(-45deg);
+}
+
+@keyframes float {
+  0% { transform: translateY(100vh) rotate(45deg); opacity: 1; }
+  100% { transform: translateY(-10vh) rotate(45deg); opacity: 0; }
+}
