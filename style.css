@@ -93,10 +93,13 @@ h1 {
 .heart span {
   position: absolute;
   color: white;
-  font-weight: bold;
-  top: 12px;
-  left: 18px;
-  transform: rotate(-45deg);
+  font-weight: 900;
+  font-size: 26px;       /* Bigger letters */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); /* Makes letters pop */
+  pointer-events: none;
 }
 
 @keyframes float {
