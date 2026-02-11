@@ -1,4 +1,4 @@
-const yesBtn = document.getElementById("yes");
+const noBtn = document.getElementById("no");
 const yesBigBtn = document.getElementById("yesBig");
 const buttons = document.getElementById("buttons");
 const message = document.getElementById("message");
@@ -32,14 +32,14 @@ const photos = [
 
 let currentPhoto = 0;
 
-yesBtn.onclick = () => {
+noBtn.onclick = () => {
   buttons.style.display = "none";
   message.textContent = "oh so you dont love me?";
 
   setTimeout(() => {
     message.textContent = "";
     buttons.style.display = "block";
-  }, 3000);
+  }, 6000);  // 6 seconds
 };
 
 yesBigBtn.onclick = () => {
@@ -47,11 +47,11 @@ yesBigBtn.onclick = () => {
   message.textContent = "you chose correctly, my precious love";
 
   setTimeout(() => {
-    message.textContent = "";
-    gallery.classList.remove("hidden");
-    photo.src = photos[currentPhoto];
-    music.play();
-  }, 3000);
+  message.textContent = "";
+  gallery.classList.remove("hidden");
+  photo.src = photos[currentPhoto];
+  music.play();
+}, 6000);
 };
 
 // Swipe logic
@@ -76,7 +76,7 @@ function nextPhoto() {
     photo.src = photos[currentPhoto];
   } else {
     gallery.innerHTML = "";
-    message.textContent = "I cant wait for the many years to come between us, I love you more than I can take.";
+    message.textContent = "I can’t wait for all the years ahead with you. I love you more than I can explain.";
   }
 }
 
