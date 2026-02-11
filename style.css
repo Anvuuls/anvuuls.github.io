@@ -29,6 +29,21 @@ h1 {
   margin-bottom: 16px;
 }
 
+#hearts-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#main {
+  z-index: 2;
+}
+
+#buttons button {
+  touch-action: manipulation;
+}
+
 #buttons button {
   font-size: 1.5rem;
   padding: 12px 30px;
