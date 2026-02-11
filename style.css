@@ -1,9 +1,15 @@
-body {
+html, body {
   margin: 0;
-  height: 100vh;
-  background: linear-gradient(135deg, #ff5f9e, #ff8fab);
+  padding: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  font-family: 'Arial', sans-serif;
+  touch-action: manipulation;
+}
+
+body {
+  background: linear-gradient(135deg, #ff5f9e, #ff8fab);
+  font-family: Arial, sans-serif;
   color: white;
 }
 
@@ -49,8 +55,11 @@ h1 {
 }
 
 #gallery img {
-  width: 280px;
-  height: auto;
+  width: 80vw;
+  max-width: 320px;
+  height: 80vw;
+  max-height: 320px;
+  object-fit: cover;
   border-radius: 20px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
@@ -63,30 +72,33 @@ h1 {
 /* Floating hearts */
 .heart {
   position: absolute;
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   background: red;
   transform: rotate(45deg);
-  animation: float 10s linear infinite;
+  animation: float 12s linear infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .heart::before,
 .heart::after {
   content: "";
   position: absolute;
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   background: red;
   border-radius: 50%;
 }
 
 .heart::before {
-  top: -25px;
+  top: -35px;
   left: 0;
 }
 
 .heart::after {
-  left: -25px;
+  left: -35px;
   top: 0;
 }
 
@@ -94,12 +106,10 @@ h1 {
   position: absolute;
   color: white;
   font-weight: 900;
-  font-size: 26px;       /* Bigger letters */
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6); /* Makes letters pop */
-  pointer-events: none;
+  font-size: 28px;
+  transform: rotate(-45deg);
+  text-shadow: 0 0 6px rgba(0,0,0,0.6);
+  z-index: 2;
 }
 
 @keyframes float {
