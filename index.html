@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CharmPass 1:1 Replica</title>
+    <style>
+        @font-face {
+            font-family: 'MoovelAkkurat';
+            src: url('fonts/MoovelAkkurat-Regular.otf') format('opentype');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'MoovelAkkurat';
+            src: url('fonts/MoovelAkkurat-Bold.otf') format('opentype');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'MoovelAkkurat';
+            src: url('fonts/MoovelAkkurat-Light.otf') format('opentype');
+            font-weight: 300;
+        }
+
+        :root {
+            --mta-red: #C02033; /* Typical MTA Red */
+            --text-dark: #212121;
+            --text-grey: #757575;
+            --bg-dark: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: "MoovelAkkurat", "Roboto", sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+        }
+
+        /* --- Setup Screen --- */
+        #setup-screen {
+            position: fixed;
+            inset: 0;
+            background: #ffffff;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        .setup-header {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--mta-red);
+            padding-bottom: 12px;
+        }
+        .input-group {
+            margin-bottom: 16px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-grey);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: "MoovelAkkurat", sans-serif;
+            background: #f9f9f9;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--mta-red);
+            background: #fff;
+        }
+        #launch-btn {
+            background: var(--mta-red);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- Live App Screen --- */
+        #app-screen {
+            display: none;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Background Video */
+        #bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.15); /* Slight darkening for readability */
+            z-index: 2;
+        }
+
+        /* Swiping Viewport */
+        #ticket-viewport {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            transform: translateY(-50%);
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none; /* Firefox */
+            z-index: 10;
+            padding: 0 calc(50vw - 144px); /* Center the 288px ticket */
+        }
+        #ticket-viewport::-webkit-scrollbar {
+            display: none; /* Safari and Chrome */
+        }
+
+        /* --- The 1:1 Ticket --- */
+        .ticket-wrapper {
+            scroll-snap-align: center;
+            flex-shrink: 0;
+            width: 288px; /* EXACT DIMENSION from JADX */
+            margin: 0 8px; /* Add spacing between multiple tickets */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .ticket {
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 4px; /* ticket_stack_corner_radius */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.35);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Expiration Header */
+        .ticket-header {
+            height: 60px; /* flash_pass_ticket_expiration_section_height */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px; /* common_layout_margin */
+        }
+        .exp-time {
+            font-size: 20px; /* Exact scale */
+            font-weight: 700;
+            color: #000;
+            letter-spacing: -0.5px;
+        }
+        .exp-date {
+            font-size: 20px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: -0.5px;
+        }
+
+        /* Divider */
+        .section-divider {
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 0 16px; /* common_layout_margin */
+        }
+
+        /* Primary Section */
+        .primary-section {
+            padding: 16px; /* common_layout_margin */
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* Left side: Agency, Origin/Dest, Product */
+        .agency-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding-right: 10px;
+        }
+        .agency-logo {
+            height: 24px; /* Scaled from xxhdpi */
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 12px;
+            align-self: flex-start;
+        }
+        .large-letter {
+            font-size: 110px;
+            font-weight: 700;
+            color: #111;
+            line-height: 0.85;
+            margin-top: 4px;
+            letter-spacing: -2px;
+        }
+        .origin-dest-container {
+            display: flex;
+            flex-direction: column;
+            margin-top: 8px;
+        }
+        .location {
+            font-size: 14px;
+            font-weight: 700;
+            color: #222;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+        .to-text {
+            font-size: 12px;
+            font-weight: 400;
+            color: #666;
+            margin: 2px 0;
+            text-transform: lowercase;
+        }
+        .product-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #444;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+
+        /* Right side: Day Use Code & QR */
+        .scan-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            width: 60px; /* flash_pass_ticket_day_use_code_width */
+            flex-shrink: 0;
+        }
+        .day-use-code {
+            width: 60px; /* flash_pass_ticket_day_use_code_width */
+            height: 45px; /* flash_pass_ticket_day_use_code_height */
+            background-color: var(--mta-red); /* Actually dynamically colored, but red is standard */
+            border-radius: 30px; /* bg_rounded_edges_30 */
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px; /* flash_pass_ticket_day_use_code_text_size */
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+        .scan-code {
+            width: 60px;
+            height: 72px; /* flash_pass_ticket_scan_code_height */
+            margin-top: 8px; /* common_layout_margin_half */
+            /* Using the realistic fake QR code string found in JADX */
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAMAAADf80W2AAAALVBMVEUAAAD///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsM6m2AAAADnRSTlMAAQIDBAUGBwgJCgsMDVv8pToAAAFcSURBVHgB7dHNSsNAFIVhzX13+uI0+M0I4v6vYvA5fA0E0zPzNlVwO2yX+xI4v5zJ5/NZ7MtnfDyeD8fz4XjcH46743533L4H3LwGvF8e4/b4YfVxbGvD55j3x5eF5fFyPD4P/XN4C+/v53gNfF583f7B49fF1+0ffH1dfN3+wd7H4Pfr4/b4YfXh7bZfHtfWxmW/PDrDff+M6+Xp2XF/P74GvF+eRse/4XvF0+Po+Hd6vD047h+fHvePv5NfA94vP96fv4NfH7fHD6sPr6/p0W0PDr8GvF9+vOf+D694exwtLp+Lz+bH09/pX49vH0+/fH5dfP6zXwN+f6yOf8P3H16v6eU/u+3B4deAd/B5O88+w8Pr+ff8fH5dfL5dfP6zXwPe58H8H49fF1+3ffB1+wd7H4N38P7A5/j98Rjff5w8vg/f56+v/wBq20vIu9u6rAAAAABJRU5ErkJggg==');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* Ticket Notches / Cutouts (Simulation of perforation) */
+        .ticket::before, .ticket::after {
+            content: "";
+            position: absolute;
+            top: 60px; /* Align exactly with header height */
+            width: 16px;
+            height: 16px;
+            background-color: var(--bg-dark); /* Matches app background */
+            border-radius: 50%;
+            z-index: 5;
+            transform: translateY(-50%);
+        }
+        .ticket::before {
+            left: -8px;
+        }
+        .ticket::after {
+            right: -8px;
+        }
+        
+        /* Multiple Ticket Indicator (if more than 1 ticket) */
+        .multi-ticket-indicator {
+            display: none;
+            margin-top: 12px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 12px;
+            border-radius: 12px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen">
+        <div class="setup-header">CharmPass Generator</div>
+        
+        <div class="input-group">
+            <label>Service Type</label>
+            <select id="in-service" onchange="updateForm()">
+                <option value="local">BaltimoreLink / Local Bus</option>
+                <option value="marc">MARC Train</option>
+                <option value="commuter">Commuter Bus</option>
+            </select>
+        </div>
+
+        <div id="origin-dest-group" style="display: none;">
+            <div class="input-group">
+                <label>Origin</label>
+                <select id="in-origin"></select>
+            </div>
+            <div class="input-group">
+                <label>Destination</label>
+                <select id="in-dest"></select>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Large Day Use Letter</label>
+            <input type="text" id="in-letter" value="F" maxlength="1">
+        </div>
+
+        <div class="input-group">
+            <label>Red Box Code</label>
+            <input type="text" id="in-code" value="G7" maxlength="3">
+        </div>
+        
+        <div class="input-group" id="product-group">
+            <label>Product Name (if applicable)</label>
+            <input type="text" id="in-product" value="BaltimoreLink">
+        </div>
+
+        <div class="input-group">
+            <label>Number of Tickets</label>
+            <input type="number" id="in-count" value="1" min="1" max="10">
+        </div>
+
+        <div class="input-group">
+            <label>Expiration (Minutes from now)</label>
+            <input type="number" id="in-minutes" value="90">
+        </div>
+
+        <button id="launch-btn">GENERATE EXACT REPLICA</button>
+    </div>
+
+    <!-- LIVE APP SCREEN -->
+    <div id="app-screen">
+        <video id="bg-video" autoplay loop muted playsinline>
+            <source src="scrolling_background.mp4" type="video/mp4">
+        </video>
+        <div class="overlay"></div>
+
+        <!-- Scrollable container for multiple tickets -->
+        <div id="ticket-viewport">
+            <!-- Tickets injected here -->
+        </div>
+    </div>
+
+    <script>
+        // Comprehensive list of MARC Stations from MDOT
+        const marcStations = [
+            "Aberdeen", "Baltimore Penn Station", "Barnesville", "BWI Thurgood Marshall Airport", 
+            "Bowie State University", "Bowleys Quarters", "Boyds", "Brunswick", "Camden Station", 
+            "College Park", "Dickerson", "Dorsey", "Edgewood", "Frederick", "Gaithersburg", 
+            "Garrett Park", "Germantown", "Greenbelt", "Halethorpe", "Jessup", "Kensington", 
+            "Laurel", "Laurel Race Track", "Martin State Airport", "Martinsburg", "Metropolitan Grove", 
+            "Monocacy", "Muirkirk", "New Carrollton", "Odenton", "Perryville", "Point of Rocks", 
+            "Riverdale", "Rockville", "Savage", "Seabrook", "Silver Spring", "St. Denis", 
+            "Washington Union Station", "Washington Grove", "West Baltimore"
+        ];
+
+        // Commuter Bus Zones
+        const commuterZones = ["Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5"];
+
+        // Setup Form Logic
+        const serviceSelect = document.getElementById('in-service');
+        const odGroup = document.getElementById('origin-dest-group');
+        const originSelect = document.getElementById('in-origin');
+        const destSelect = document.getElementById('in-dest');
+        const productInput = document.getElementById('in-product');
+
+        function populateSelect(selectElement, options) {
+            selectElement.innerHTML = '';
+            options.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt;
+                el.textContent = opt;
+                selectElement.appendChild(el);
+            });
+        }
+
+        function updateForm() {
+            const service = serviceSelect.value;
+            if (service === 'marc') {
+                odGroup.style.display = 'block';
+                populateSelect(originSelect, marcStations);
+                populateSelect(destSelect, [...marcStations].reverse()); // Just to have a different default
+                productInput.value = "MARC Train";
+            } else if (service === 'commuter') {
+                odGroup.style.display = 'block';
+                populateSelect(originSelect, commuterZones);
+                populateSelect(destSelect, [...commuterZones].reverse());
+                productInput.value = "Commuter Bus";
+            } else {
+                odGroup.style.display = 'none';
+                productInput.value = "BaltimoreLink";
+            }
+        }
+
+        // Initialize form
+        updateForm();
+
+        // Launch Logic
+        document.getElementById('launch-btn').addEventListener('click', () => {
+            const service = serviceSelect.value;
+            const letter = document.getElementById('in-letter').value.toUpperCase() || 'F';
+            const code = document.getElementById('in-code').value.toUpperCase() || 'G7';
+            const product = document.getElementById('in-product').value;
+            const minutes = parseInt(document.getElementById('in-minutes').value) || 90;
+            const count = parseInt(document.getElementById('in-count').value) || 1;
+            
+            const origin = originSelect.value;
+            const dest = destSelect.value;
+
+            // Calculate exact expiration format
+            const now = new Date();
+            const exp = new Date(now.getTime() + minutes * 60000);
+
+            let h = exp.getHours();
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            const m = String(exp.getMinutes()).padStart(2, '0');
+            const s = String(exp.getSeconds()).padStart(2, '0');
+            const timeStr = `${h}:${m}:${s} ${ampm}`;
+
+            const month = String(exp.getMonth() + 1).padStart(2, '0');
+            const day = String(exp.getDate()).padStart(2, '0');
+            const year = String(exp.getFullYear()).slice(-2);
+            const dateStr = `${month}/${day}/${year}`;
+
+            // Build dynamic middle section based on service type
+            let middleSectionHTML = '';
+            
+            if (service === 'local') {
+                middleSectionHTML = `<div class="large-letter">${letter}</div>
+                                     <div class="product-name">${product}</div>`;
+            } else {
+                // MARC or Commuter
+                middleSectionHTML = `
+                    <div class="origin-dest-container">
+                        <div class="location">${origin}</div>
+                        <div class="to-text">to</div>
+                        <div class="location">${dest}</div>
+                    </div>
+                    <div class="product-name">${product}</div>
+                `;
+            }
+
+            const viewport = document.getElementById('ticket-viewport');
+            viewport.innerHTML = '';
+
+            // Generate N tickets for swiping
+            for (let i = 1; i <= count; i++) {
+                const ticketWrapper = document.createElement('div');
+                ticketWrapper.className = 'ticket-wrapper';
+                
+                let indicatorHTML = '';
+                if (count > 1) {
+                    indicatorHTML = `<div class="multi-ticket-indicator" style="display: block;">Ticket ${i} of ${count}</div>`;
+                }
+
+                ticketWrapper.innerHTML = `
+                    <div class="ticket">
+                        <div class="ticket-header">
+                            <span class="exp-time">${timeStr}</span>
+                            <span class="exp-date">${dateStr}</span>
+                        </div>
+                        <div class="section-divider"></div>
+                        <div class="primary-section">
+                            <div class="agency-section">
+                                <img src="ticket_icon.png" class="agency-logo" alt="MTA Logo">
+                                ${middleSectionHTML}
+                            </div>
+                            <div class="scan-section">
+                                <div class="day-use-code">${code}</div>
+                                <div class="scan-code"></div>
+                            </div>
+                        </div>
+                    </div>
+                    ${indicatorHTML}
+                `;
+                viewport.appendChild(ticketWrapper);
+            }
+
+            // Transition screens
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+
+            // Ensure video plays
+            document.getElementById('bg-video').play().catch(e => console.log("Waiting for interaction"));
+        });
+    </script>
+</body>
+</html>
