@@ -33,10 +33,11 @@
             pointer-events: auto; /* Fixed: Allow swipe gestures on the container */
             padding-top: 8vh;
             overflow-x: auto;
+            overflow-y: auto; /* Added: Allow vertical scrolling if ticket is tall */
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            touch-action: pan-x; /* Optimization for horizontal swiping */
+            touch-action: pan-x pan-y; /* Updated: Support both directions */
         }
         #ticket-viewport::-webkit-scrollbar { display: none; }
 
@@ -348,8 +349,9 @@
           "left": "22px"
         },
         ".box-code": {
-          "left": "327px",
-          "top": "118px"
+          "left": "313.59864457831327px",
+          "top": "106.99774096385542px",
+          "font-size": "65px"
         },
         "#ref-1775240194197": {
           "left": "-41px",
@@ -360,6 +362,11 @@
       "marc": {
         ".notches-unit": {
           "top": "72px"
+        },
+        ".box-code": {
+          "font-size": "65px",
+          "left": "314px",
+          "top": "107px"
         }
       }
     };
@@ -698,7 +705,8 @@
             img.src = ev.target.result;
             img.style.cssText = 'width:100%; display:block; opacity:0.5; pointer-events:none;';
             div.appendChild(img);
-            document.getElementById('app-screen').appendChild(div);
+            // Changed: Append to the scroll container so it moves with the tickets
+            document.getElementById('ticket-viewport').appendChild(div);
             selectElement(div);
         };
         reader.readAsDataURL(file);
