@@ -100,8 +100,8 @@
 
         .red-box { left: 311px; top: 107px; width: 88px; height: 70px; background-color: var(--mta-red); border-radius: 10px; color: #fff; display: flex; justify-content: center; align-items: center; font-size: 44px; font-weight: 700; }
         .box-code { left: 327px; top: 118px; font-size: 44px; font-weight: 700; color: #fff; letter-spacing: 0px; z-index: 45; }
-        .qr-container { left: 313px; top: 196px; width: 86px; height: 86px; background: white; padding: 5px; border-radius: 6px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; }
-        .qr-container img { width: 100% !important; height: 100% !important; position: static !important; }
+        .qr-container { left: 313px; top: 196px; width: 86px; height: 86px; background: white; padding: 5px; border-radius: 6px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .qr-container img { width: 100% !important; height: auto !important; position: static !important; }
 
         /* ── Customization Mode UI ── */
         .editable:not(.ticket):hover { outline: 1px dashed rgba(0,0,255,0.5); cursor: move; }
@@ -251,10 +251,11 @@
                     ${marcHtml}
                     <div class="red-box editable"></div>
                     <div class="box-code editable">${code}</div>
-                    <div class="qr-container editable" id="qr-main-${i}"></div>
+                    <div class="qr-container editable" id="qr-main-${i}">
+                        <img src="barcode.png" alt="barcode" />
+                    </div>
                 </div>`;
             viewport.appendChild(wrap);
-            new QRCode(document.getElementById(`qr-main-${i}`), { text: qrData, width: 90, height: 90 });
 
             // Fixed: Initialize mask on launch for every ticket
             const notches = wrap.querySelector('.notches-unit');
@@ -263,7 +264,7 @@
             // QR tap-to-enlarge logic
             document.getElementById(`qr-main-${i}`).onclick = (e) => {
                 if (document.getElementById('in-edit-mode').checked) return;
-                showQr(qrData);
+                showQrStatic();
             };
         }
 
@@ -297,10 +298,9 @@
 
         window.addEventListener('resize', resizeTickets);
 
-        function showQr(data) {
+        function showQrStatic() {
         const full = document.getElementById('qr-full');
-        full.innerHTML = '';
-        new QRCode(full, { text: data, width: 350, height: 350 });
+        full.innerHTML = '<img src="barcode.png" style="width:100%; height:auto;" />';
         document.getElementById('qr-overlay').style.display = 'flex';
         }
 
@@ -361,12 +361,142 @@
       "commuter": {},
       "marc": {
         ".notches-unit": {
-          "top": "72px"
+          "top": "72px",
+          "width": "380.29525353630476px",
+          "height": "30px",
+          "left": "3.704746463695244px"
         },
         ".box-code": {
-          "font-size": "65px",
+          "font-size": "55px",
+          "left": "326.8232769919323px",
+          "top": "114.58836150403387px",
+          "opacity": "1",
+          "width": "62px",
+          "height": "46px",
+          "letter-spacing": "-4px"
+        },
+        "#ref-1775247350507": {
+          "left": "212px",
+          "top": "196px",
+          "width": "1111px",
+          "height": "1210.99px"
+        },
+        ".ticket": {
+          "height": "430.1767230080677px",
+          "opacity": "1",
+          "border-top-left-radius": "8px",
+          "border-bottom-right-radius": "8px",
+          "border-bottom-left-radius": "8px",
+          "border-top-right-radius": "8px"
+        },
+        "#ref-1775247553930": {
+          "left": "219px",
+          "top": "-1019px",
+          "width": "2121px",
+          "height": "2312.141501976285px"
+        },
+        "#ref-1775247832303": {
+          "width": "307.5714416503906px",
+          "height": "334.81024091094184px",
+          "left": "45px",
+          "top": "60px"
+        },
+        "#ref-1775247906335": {
+          "width": "315.2857131958008px",
+          "height": "344.49748853982067px",
+          "left": "33px",
+          "top": "57px",
+          "opacity": "1"
+        },
+        ".giant-letter": {
+          "left": "24px",
+          "top": "170.82327699193226px",
+          "font-size": "166px",
+          "letter-spacing": "-10px",
+          "height": "92px",
+          "border-top-right-radius": "0px"
+        },
+        "#qr-main-0": {
+          "left": "308px",
+          "top": "194px",
+          "width": "100px",
+          "height": "100px"
+        },
+        ".red-box": {
           "left": "314px",
-          "top": "107px"
+          "top": "113px",
+          "width": "88.2349154878984px",
+          "height": "63px",
+          "border-top-right-radius": "4px",
+          "border-bottom-right-radius": "4px",
+          "border-top-left-radius": "4px",
+          "border-bottom-left-radius": "4px",
+          "opacity": "1",
+          "font-size": "45px"
+        },
+        ".product-name": {
+          "top": "377.23491548789843px",
+          "left": "24px",
+          "font-size": "18px"
+        },
+        ".route-dest": {
+          "top": "341px",
+          "left": "126px",
+          "width": "63px"
+        },
+        ".route-origin": {
+          "top": "340.58836150403386px",
+          "left": "24px",
+          "font-size": "31px"
+        },
+        ".route-arrow": {
+          "top": "342.4698309757968px",
+          "left": "97px",
+          "font-size": "27px",
+          "letter-spacing": "0px"
+        },
+        ".zones-text": {
+          "left": "23.706892032270904px",
+          "top": "314px",
+          "font-size": "23px"
+        },
+        ".expire-time": {
+          "font-size": "22px",
+          "top": "23.765084512101588px",
+          "left": "23.588361504033863px"
+        },
+        ".expire-date": {
+          "font-size": "25px",
+          "top": "24px",
+          "left": "310px",
+          "width": "157px",
+          "height": "35px",
+          "letter-spacing": "-2px"
+        },
+        "#ref-1775249222710": {
+          "width": "73px",
+          "height": "73.93047508690614px",
+          "left": "-37px",
+          "top": "25px"
+        },
+        "#ref-1775250215132": {
+          "width": "70px",
+          "height": "72.22222222222223px",
+          "left": "41px",
+          "top": "21px"
+        },
+        "#ref-1775252044588": {
+          "width": "930px",
+          "height": "934.65px",
+          "left": "86px",
+          "top": "104px"
+        },
+        "#ref-1775252074601": {
+          "width": "196px",
+          "height": "197.76576576576576px",
+          "left": "96px",
+          "top": "-30px",
+          "opacity": "1"
         }
       }
     };
@@ -383,6 +513,10 @@
                 // Fixed: Allow height customization for the ticket
                 if (sel === '.ticket' && ['width', 'top'].some(p => map[sel][p])) {
                    const {width, top, ...rest} = map[sel];
+                   Object.assign(el.style, rest);
+                } else if (map[sel]['data-radius'] !== undefined) {
+                   el.setAttribute('data-radius', map[sel]['data-radius']);
+                   const { 'data-radius': _, ...rest } = map[sel];
                    Object.assign(el.style, rest);
                 } else {
                    Object.assign(el.style, map[sel]);
@@ -402,6 +536,7 @@
             document.querySelectorAll(sel).forEach(el => {
                 Object.keys(savedStyles[sel]).forEach(p => { 
                     if (sel === '.ticket' && ['width', 'top'].includes(p)) return;
+                    if (p === 'data-radius') { el.removeAttribute('data-radius'); return; }
                     el.style[p] = ''; 
                 });
             });
@@ -420,6 +555,7 @@
             document.querySelectorAll(sel).forEach(el => {
                 Object.keys(savedStyles[sel]).forEach(p => { 
                     if (sel === '.ticket' && ['width', 'top'].includes(p)) return;
+                    if (p === 'data-radius') { el.removeAttribute('data-radius'); return; }
                     el.style[p] = ''; 
                 });
             });
@@ -508,7 +644,7 @@
             if (selectedEl.classList.contains('ticket')) return; // Ticket position is fixed/responsive
             const nt = elStartTop + (dy / scale);
             let nl = elStartLeft + (dx / scale);
-            if (selectedEl.classList.contains('notches-unit')) nl = 0;
+            if (selectedEl.classList.contains('notches-unit')) nl = 0; // Fix horizontally
             selectedEl.style.left = nl + 'px';
             selectedEl.style.top  = nt + 'px';
             saveElStyle(selectedEl, 'left', nl + 'px');
@@ -611,7 +747,8 @@
         const y    = unit.offsetTop + unit.offsetHeight / 2;
         const t    = unit.closest('.ticket');
         if (!t) return;
-        const mask = `radial-gradient(circle 12px at 0px ${y}px, transparent 12px, #000 13px), radial-gradient(circle 12px at 100% ${y}px, transparent 12px, #000 13px)`;
+        const radius = parseFloat(unit.getAttribute('data-radius')) || 12;
+        const mask = `radial-gradient(circle ${radius}px at 0px ${y}px, transparent ${radius}px, #000 ${radius+1}px), radial-gradient(circle ${radius}px at 100% ${y}px, transparent ${radius}px, #000 ${radius+1}px)`;
         t.style.webkitMaskImage = mask;
         t.style.maskImage       = mask;
         t.style.webkitMaskComposite = 'source-in';
@@ -643,19 +780,35 @@
         opRow.appendChild(opSlider);
         panel.appendChild(opRow);
 
-        [['width','W (px)'],['height','H (px)'],['left','X (px)'],['top','Y (px)'],['font-size','Font sz'],['letter-spacing','Tracking'],['border-top-left-radius','R-TL'],['border-top-right-radius','R-TR'],['border-bottom-left-radius','R-BL'],['border-bottom-right-radius','R-BR']].forEach(([prop, lbl]) => {
+        [['width','W (px)'],['height','H (px)'],['left','X (px)'],['top','Y (px)'],['font-size','Font sz'],['letter-spacing','Tracking'],['font-weight','Weight'],['border-top-left-radius','R-TL'],['border-top-right-radius','R-TR'],['border-bottom-left-radius','R-BL'],['border-bottom-right-radius','R-BR']].forEach(([prop, lbl]) => {
             const row = makeRow(lbl);
             const inp = document.createElement('input');
             inp.type  = 'number';
+            if (prop === 'font-weight') {
+                inp.step = '100'; inp.min = '100'; inp.max = '900';
+            }
             inp.value = Math.round(parseFloat(cs[prop]) || 0);
             inp.oninput = () => {
-                el.style[prop] = inp.value + 'px';
-                saveElStyle(el, prop, inp.value + 'px');
+                el.style[prop] = inp.value + (prop === 'font-weight' ? '' : 'px');
+                saveElStyle(el, prop, el.style[prop]);
                 if (el.classList.contains('notches-unit')) updateTicketMask(el);
             };
             controlInputs[prop] = inp;
             row.appendChild(inp); panel.appendChild(row);
         });
+
+        if (el.classList.contains('notches-unit')) {
+            const row = makeRow('Notch Size');
+            const inp = document.createElement('input');
+            inp.type = 'number';
+            inp.value = parseFloat(el.getAttribute('data-radius')) || 12;
+            inp.oninput = () => {
+                el.setAttribute('data-radius', inp.value);
+                saveElStyle(el, 'data-radius', inp.value);
+                updateTicketMask(el);
+            };
+            row.appendChild(inp); panel.appendChild(row);
+        }
 
         const firstChild = el.childNodes[0];
         if (firstChild && firstChild.nodeType === Node.TEXT_NODE && firstChild.textContent.trim()) {
