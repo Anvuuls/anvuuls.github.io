@@ -30,15 +30,15 @@
             align-items: flex-start; 
             justify-content: flex-start; 
             z-index: 10; 
-            pointer-events: none; 
+            pointer-events: auto; /* Fixed: Allow swipe gestures on the container */
             padding-top: 8vh;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            touch-action: pan-x; /* Optimization for horizontal swiping */
         }
         #ticket-viewport::-webkit-scrollbar { display: none; }
-        #ticket-viewport > * { pointer-events: auto; }
 
         .ticket-wrapper {
             width: 100vw;
@@ -48,6 +48,7 @@
             scroll-snap-align: start;
             flex-shrink: 0;
             padding: 0 8.5vw;
+            pointer-events: none; /* Let the scroll container handle it */
         }
 
         .ticket { 
@@ -64,6 +65,7 @@
             transform: scale(var(--scale));
             transform-origin: top center;
             flex-shrink: 0;
+            pointer-events: auto; /* Re-enable for the ticket itself */
         }
 
         @media (max-width: 480px) {
@@ -252,7 +254,11 @@
                 </div>`;
             viewport.appendChild(wrap);
             new QRCode(document.getElementById(`qr-main-${i}`), { text: qrData, width: 90, height: 90 });
-            
+
+            // Fixed: Initialize mask on launch for every ticket
+            const notches = wrap.querySelector('.notches-unit');
+            if (notches) updateTicketMask(notches);
+
             // QR tap-to-enlarge logic
             document.getElementById(`qr-main-${i}`).onclick = (e) => {
                 if (document.getElementById('in-edit-mode').checked) return;
@@ -267,59 +273,54 @@
         applyStyleMap(BAKED_DEFAULTS[service] || {});
 
         if (document.getElementById('in-edit-mode').checked) initCustomization();
-        
-        resizeTickets();
-    };
 
-    function resizeTickets() {
+        resizeTickets();
+        };
+
+        function resizeTickets() {
         const tickets = document.querySelectorAll('.ticket');
         if (!tickets.length) return;
-        
-        const targetWidth = window.innerWidth * 0.83; // 83vw from reference
+
+        // Exact 1:1 scaling based on 83vw
+        const targetWidth = window.innerWidth * 0.83; 
         const baseW = 424;
-        const baseH = 480;
-        
+
         let scale = targetWidth / baseW;
-        
-        // Ensure it doesn't overflow height (8vh top padding)
-        const vh = window.innerHeight;
-        const maxH = vh * 0.85; // Leave some room at bottom
-        if (baseH * scale > maxH) {
-            scale = maxH / baseH;
-        }
+
+        // No hard height limit to ensure 1:1 proportions, just use scale
 
         tickets.forEach(ticket => {
             ticket.style.setProperty('--scale', scale);
         });
-    }
+        }
 
-    window.addEventListener('resize', resizeTickets);
+        window.addEventListener('resize', resizeTickets);
 
-    function showQr(data) {
+        function showQr(data) {
         const full = document.getElementById('qr-full');
         full.innerHTML = '';
         new QRCode(full, { text: data, width: 350, height: 350 });
         document.getElementById('qr-overlay').style.display = 'flex';
-    }
+        }
 
-    // ── Customization Mode ─────────────────────────────────────────────────────
+        // ── Customization Mode ─────────────────────────────────────────────────────
 
-    let selectedEl  = null;
-    let dragging    = false;
-    let resizing    = false;
-    let ptrMoved    = false;
-    let activeHandle = null;
-    let ptrStartX, ptrStartY;
-    let elStartLeft, elStartTop, elStartW, elStartH, resizeRatio;
-    let controlInputs = {};
+        let selectedEl  = null;
+        let dragging    = false;
+        let resizing    = false;
+        let ptrMoved    = false;
+        let activeHandle = null;
+        let ptrStartX, ptrStartY;
+        let elStartLeft, elStartTop, elStartW, elStartH, resizeRatio;
+        let controlInputs = {};
 
-    let currentService = 'local';
-    let savedStyles    = {};
-    const undoStack    = [];
+        let currentService = 'local';
+        let savedStyles    = {};
+        const undoStack    = [];
 
-    // ==BAKED_DEFAULTS_START==
-    const BAKED_DEFAULTS = {
-      "local": {
+        // ==BAKED_DEFAULTS_START==
+        const BAKED_DEFAULTS = {
+        "local": {
         "#ref-1775233963199": {
           "left": "387.85711669921875px",
           "top": "81px",
@@ -350,39 +351,42 @@
           "left": "327px",
           "top": "118px"
         }
-      },
-      "commuter": {},
-      "marc": {}
-    };
-    // ==BAKED_DEFAULTS_END==
+        },
+        "commuter": {},
+        "marc": {}
+        };
+        // ==BAKED_DEFAULTS_END==
 
-    function snapshotForUndo() {
+        function snapshotForUndo() {
         undoStack.push(JSON.stringify(savedStyles));
         if (undoStack.length > 50) undoStack.shift();
-    }
+        }
 
-    function applyStyleMap(map) {
+        function applyStyleMap(map) {
         Object.keys(map).forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
-                // Skip base ticket sizing that should be responsive
-                if (sel === '.ticket' && ['width', 'height', 'top'].some(p => map[sel][p])) {
-                   const {width, height, top, ...rest} = map[sel];
+                // Fixed: Allow height customization for the ticket
+                if (sel === '.ticket' && ['width', 'top'].some(p => map[sel][p])) {
+                   const {width, top, ...rest} = map[sel];
                    Object.assign(el.style, rest);
                 } else {
                    Object.assign(el.style, map[sel]);
                 }
-                if (sel === '.notches-unit') updateTicketMask(el);
+                if (sel === '.notches-unit' || sel === '.ticket') {
+                    const n = el.classList.contains('ticket') ? el.querySelector('.notches-unit') : el;
+                    if (n) updateTicketMask(n);
+                }
             });
         });
-    }
+        }
 
-    function undoEdit() {
+        function undoEdit() {
         if (!undoStack.length) return;
         const prev = JSON.parse(undoStack.pop());
         Object.keys(savedStyles).forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
                 Object.keys(savedStyles[sel]).forEach(p => { 
-                    if (sel === '.ticket' && ['width', 'height', 'top'].includes(p)) return;
+                    if (sel === '.ticket' && ['width', 'top'].includes(p)) return;
                     el.style[p] = ''; 
                 });
             });
@@ -392,15 +396,15 @@
         applyStyleMap(savedStyles);
         localStorage.setItem('ticket_styles_' + currentService, JSON.stringify(savedStyles));
         if (selectedEl) updateControls(selectedEl);
-    }
+        }
 
-    function resetAllStyles() {
+        function resetAllStyles() {
         if (!confirm('Clear ALL customizations and restore defaults?')) return;
         snapshotForUndo();
         Object.keys(savedStyles).forEach(sel => {
             document.querySelectorAll(sel).forEach(el => {
                 Object.keys(savedStyles[sel]).forEach(p => { 
-                    if (sel === '.ticket' && ['width', 'height', 'top'].includes(p)) return;
+                    if (sel === '.ticket' && ['width', 'top'].includes(p)) return;
                     el.style[p] = ''; 
                 });
             });
@@ -410,29 +414,29 @@
         // Re-apply baked defaults so the ticket returns to its baked baseline
         applyStyleMap(BAKED_DEFAULTS[currentService] || {});
         if (selectedEl) updateControls(selectedEl);
-    }
+        }
 
-    window.addEventListener('keydown', e => {
+        window.addEventListener('keydown', e => {
         if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undoEdit(); }
-    });
+        });
 
-    function getElSel(el) {
+        function getElSel(el) {
         if (el.id) return '#' + el.id;
         if (el.classList.contains('ticket')) return '.ticket';
         const cls = Array.from(el.classList).find(c => !['editable','selected','locked','ref-container'].includes(c));
         return cls ? '.' + cls : null;
-    }
+        }
 
-    function saveElStyle(el, prop, val) {
+        function saveElStyle(el, prop, val) {
         const sel = getElSel(el);
         if (!sel) return;
-        if (sel === '.ticket' && ['width', 'height', 'top'].includes(prop)) return;
+        if (sel === '.ticket' && ['width', 'top'].includes(prop)) return;
         if (!savedStyles[sel]) savedStyles[sel] = {};
         savedStyles[sel][prop] = val;
         localStorage.setItem('ticket_styles_' + currentService, JSON.stringify(savedStyles));
-    }
+        }
 
-    function initCustomization() {
+        function initCustomization() {
         document.getElementById('edit-panel').style.display = 'block';
         // Baked defaults already applied on launch — only re-apply in-progress edits on top
         applyStyleMap(savedStyles);
@@ -445,9 +449,9 @@
         const appScreen = document.getElementById('app-screen');
         appScreen.addEventListener('dragover', e => e.preventDefault());
         appScreen.addEventListener('drop', onImageDrop);
-    }
+        }
 
-    function onPtrDown(e) {
+        function onPtrDown(e) {
         if (e.target.closest('#edit-panel')) return;
 
         if (e.target.classList.contains('resize-handle')) {
@@ -465,12 +469,12 @@
         ptrStartX   = e.clientX;
         ptrStartY   = e.clientY;
         elStartLeft = target.classList.contains('ticket') ? 0 : target.offsetLeft;
-        elStartTop  = target.classList.contains('ticket') ? (parseFloat(target.style.top) || 0) : target.offsetTop;
+        elStartTop  = target.classList.contains('ticket') ? 0 : target.offsetTop;
         ptrMoved    = false;
         dragging    = true;
-    }
+        }
 
-    function onPtrMove(e) {
+        function onPtrMove(e) {
         if (!dragging && !resizing) return;
         e.preventDefault();
         const dx = e.clientX - ptrStartX;
@@ -483,7 +487,7 @@
         }
 
         const ticket = selectedEl.closest('.ticket');
-        const scale  = ticket ? parseFloat(getComputedStyle(ticket).getPropertyValue('--scale')) || 1 : 1;
+        const scale  = ticket ? parseFloat(getComputedStyle(ticket).getPropertyValue('--scale')) || 1 : 1;      
 
         if (dragging && selectedEl) {
             if (selectedEl.classList.contains('ticket')) return; // Ticket position is fixed/responsive
@@ -500,11 +504,19 @@
         }
 
         if (resizing && selectedEl) {
-            if (selectedEl.classList.contains('ticket')) return; // Ticket size is responsive
+            // Fixed: Re-enable height resizing for the ticket, skip width/top
+            if (selectedEl.classList.contains('ticket')) {
+                const nh = Math.max(10, elStartH + (dy / scale));
+                selectedEl.style.height = nh + 'px';
+                saveElStyle(selectedEl, 'height', nh + 'px');
+                if (controlInputs['height']) controlInputs['height'].value = Math.round(nh);
+                const notches = selectedEl.querySelector('.notches-unit');
+                if (notches) updateTicketMask(notches);
+                return;
+            }
             doResize(dx / scale, dy / scale);
         }
-    }
-
+        }
     function onPtrUp() { dragging = resizing = false; activeHandle = null; ptrMoved = false; }
 
     function deselectAll() {
