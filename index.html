@@ -60,33 +60,20 @@
             pointer-events: none;
         }
 
-        .ticket { 
+        .ticket {
             --base-width: 424;
             --base-height: 480;
             --scale: 1;
-            width: calc(var(--base-width) * 1px); 
-            height: calc(var(--base-height) * 1px); 
-            background-color: var(--ticket-bg); 
-            border-radius: 12px; 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.7); 
-            position: relative; 
+            width: calc(var(--base-width) * 1px);
+            height: calc(var(--base-height) * 1px);
+            background-color: var(--ticket-bg);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            position: relative;
             overflow: visible;
-            transform: scale(var(--scale));
-            transform-origin: top center;
+            zoom: var(--scale);
             flex-shrink: 0;
             pointer-events: auto;
-        }
-
-        @media (max-width: 480px) {
-            .ticket {
-                --scale: 0.85;
-            }
-        }
-
-        @media (max-height: 600px) {
-            .ticket {
-                --scale: 0.75;
-            }
         }
 
         /* All ticket elements are absolute by default */
