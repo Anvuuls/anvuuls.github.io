@@ -318,9 +318,9 @@
         let savedStyles    = {};
         const undoStack    = [];
 
-        // ==BAKED_DEFAULTS_START==
-        const BAKED_DEFAULTS = {
-        "local": {
+    // ==BAKED_DEFAULTS_START==
+    const BAKED_DEFAULTS = {
+      "local": {
         "#ref-1775233963199": {
           "left": "387.85711669921875px",
           "top": "81px",
@@ -329,7 +329,7 @@
         },
         ".ticket": {
           "width": "424px",
-          "height": "480px"
+          "height": "370px"
         },
         ".product-name": {
           "left": "23px",
@@ -350,12 +350,20 @@
         ".box-code": {
           "left": "327px",
           "top": "118px"
-        }
         },
-        "commuter": {},
-        "marc": {}
-        };
-        // ==BAKED_DEFAULTS_END==
+        "#ref-1775240194197": {
+          "left": "-41px",
+          "top": "63px"
+        }
+      },
+      "commuter": {},
+      "marc": {
+        ".notches-unit": {
+          "top": "72px"
+        }
+      }
+    };
+    // ==BAKED_DEFAULTS_END==
 
         function snapshotForUndo() {
         undoStack.push(JSON.stringify(savedStyles));
