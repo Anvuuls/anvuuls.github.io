@@ -80,8 +80,12 @@
         /* All ticket elements are absolute by default */
         .ticket div, .ticket span { position: absolute; }
 
-        .expire-time { left: 23px; top: 29px; font-size: 26px; letter-spacing: 0.6px; color: #000; }
-        .expire-date { left: 281px; top: 30px; font-size: 26px; letter-spacing: 0px; color: #000; }
+        @keyframes datetime-pulse {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        .expire-time { left: 23px; top: 29px; font-size: 26px; letter-spacing: 0.6px; color: #000; animation: datetime-pulse 1s linear infinite alternate; }
+        .expire-date { left: 281px; top: 30px; font-size: 26px; letter-spacing: 0px; color: #000; animation: datetime-pulse 1s linear infinite alternate; }
 
         .notches-unit { left: 0px; top: 72px; width: 382px; height: 34px; display: flex; align-items: center; cursor: ns-resize; z-index: 40; }
         .divider { height: 1px; background-color: var(--divider-gray); width: 100%; margin: 0 20px; position: static !important; flex-shrink: 0; pointer-events: none; }
@@ -145,12 +149,18 @@
     <div id="setup-screen">
         <div class="input-group"><label>Service</label><select id="in-service" onchange="updateForm()"><option value="local">BaltimoreLink</option><option value="commuter">Commuter Bus</option><option value="marc">Marc Train</option></select></div>
         <div id="od-group" style="display:none">
+            <div class="input-group"><label>Line</label><select id="in-line" onchange="updateMarcStations()"><option value="penn">Penn Line</option><option value="camden">Camden Line</option><option value="brunswick">Brunswick Line</option></select></div>
             <div class="input-group"><label>Origin</label><select id="in-origin"></select></div>
             <div class="input-group"><label>Destination</label><select id="in-dest"></select></div>
         </div>
-        <div class="input-group"><label>Code</label><input type="text" id="in-code" value="G7" maxlength="2"></div>
+        <div class="input-group">
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Daily Code</span>
+                <span id="daily-code-status" style="font-size:10px;font-weight:400;text-transform:none;color:#888;"></span>
+            </label>
+            <input type="text" id="in-code" maxlength="2" placeholder="Enter today's code" autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:4px;font-weight:700;">
+        </div>
         <div class="input-group"><label>Ticket Count</label><input type="number" id="in-count" value="1" min="1"></div>
-        <div class="input-group"><label>QR Data</label><input type="text" id="in-qr" value="CharmPass_Replica"></div>
         <div class="input-group" style="display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="in-edit-mode" style="width:auto;">
             <label for="in-edit-mode" style="text-transform:none;font-size:14px;color:#333;">Enable Customization Mode</label>
@@ -186,27 +196,192 @@
 
     <script>
     // ── Station data & setup form ──────────────────────────────────────────────
-    const stationZones = {
-        'PVL':6,'ABE':5,'EDG':5,'MTA':4,'BAL':4,'WBA':4,'HAL':3,'BWI':3,'ODE':2,'BOW':2,'SEA':2,'NCR':1,'WAS':1,
-        'CAM':4,'SDN':4,'ELK':3,'DOR':3,'SVG':3,'JSP':3,'LAP':2,'LAU':2,'MUI':2,'GRB':1,'CLP':1,'RDP':1,
-        'MRT':6,'DUF':6,'HFY':6,'BRU':5,'POR':4,'DKN':4,'BRV':4,'BOY':4,'GER':3,'MET':3,'GAI':3,'WAG':3,
-        'RKV':2,'GPK':2,'KEN':2,'SSP':1,'FRE':4,'MON':4
+    // Real names/abbreviations from MTA API (GetPhrases + GetProducts)
+    const marcLines = {
+        penn: { name: 'Penn Line', stations: [
+            {abbrev:'PRV', name:'Perryville',             zone:6},
+            {abbrev:'ABE', name:'Aberdeen',               zone:5},
+            {abbrev:'EDG', name:'Edgewood',               zone:5},
+            {abbrev:'MSA', name:'Martin Airport',         zone:4},
+            {abbrev:'BAL', name:'Baltimore/Penn',         zone:4},
+            {abbrev:'WBL', name:'West Baltimore',         zone:4},
+            {abbrev:'HAE', name:'Halethorpe',             zone:3},
+            {abbrev:'BWI', name:'BWI Airport',            zone:3},
+            {abbrev:'OTN', name:'Odenton',                zone:2},
+            {abbrev:'BWE', name:'Bowie State University', zone:2},
+            {abbrev:'SEB', name:'Seabrook',               zone:2},
+            {abbrev:'NCR', name:'New Carrollton',         zone:1},
+            {abbrev:'WAS', name:'Washington D.C.',        zone:1},
+        ]},
+        camden: { name: 'Camden Line', stations: [
+            {abbrev:'BCA', name:'Baltimore/Camden',  zone:4},
+            {abbrev:'STD', name:'St. Denis',         zone:4},
+            {abbrev:'DRS', name:'Dorsey',            zone:3},
+            {abbrev:'SVG', name:'Savage',            zone:3},
+            {abbrev:'JES', name:'Jessup',            zone:3},
+            {abbrev:'LRM', name:'Laurel',            zone:2},
+            {abbrev:'LRT', name:'Laurel Park',       zone:2},
+            {abbrev:'MUK', name:'Muirkirk',          zone:2},
+            {abbrev:'GBT', name:'Greenbelt',         zone:1},
+            {abbrev:'CPK', name:'College Park',      zone:1},
+            {abbrev:'RVD', name:'Riverdale Park',    zone:1},
+            {abbrev:'WAS', name:'Washington D.C.',   zone:1},
+        ]},
+        brunswick: { name: 'Brunswick Line', stations: [
+            {abbrev:'MRB', name:'Martinsburg',         zone:6},
+            {abbrev:'DUF', name:'Duffields',           zone:6},
+            {abbrev:'HFY', name:"Harper's Ferry",      zone:6},
+            {abbrev:'BWK', name:'Brunswick',           zone:5},
+            {abbrev:'PRM', name:'Point of Rocks',      zone:4},
+            {abbrev:'FRC', name:'Frederick',           zone:4},
+            {abbrev:'MCY', name:'Monocacy',            zone:4},
+            {abbrev:'DKS', name:'Dickerson',           zone:4},
+            {abbrev:'BAV', name:'Barnesville',         zone:4},
+            {abbrev:'BYD', name:'Boyds',               zone:4},
+            {abbrev:'GEM', name:'Germantown',          zone:3},
+            {abbrev:'MTG', name:'Metropolitan Grove',  zone:3},
+            {abbrev:'GAI', name:'Gaithersburg',        zone:3},
+            {abbrev:'WGM', name:'Washington Grove',    zone:3},
+            {abbrev:'RKV', name:'Rockville',           zone:2},
+            {abbrev:'GPM', name:'Garrett Park',        zone:2},
+            {abbrev:'KSM', name:'Kensington',          zone:2},
+            {abbrev:'SSP', name:'Silver Spring',       zone:1},
+            {abbrev:'WAS', name:'Washington D.C.',     zone:1},
+        ]},
     };
-    const stationOpts = Object.keys(stationZones).map(k => `<option value="${k}">${k}</option>`).join('');
-    document.getElementById('in-origin').innerHTML = stationOpts;
-    document.getElementById('in-dest').innerHTML   = stationOpts;
+
+    // Build zone lookup from all stations
+    const stationZones = {};
+    for (const line of Object.values(marcLines)) {
+        for (const s of line.stations) stationZones[s.abbrev] = s.zone;
+    }
+
+    function updateMarcStations() {
+        const line = document.getElementById('in-line').value;
+        const opts = marcLines[line].stations.map(s => `<option value="${s.abbrev}">${s.name} (${s.abbrev})</option>`).join('');
+        document.getElementById('in-origin').innerHTML = opts;
+        document.getElementById('in-dest').innerHTML   = opts;
+        // Default dest to last station (other end of line)
+        document.getElementById('in-dest').selectedIndex = marcLines[line].stations.length - 1;
+    }
+    updateMarcStations();
+
+    // ── Daily Code System ─────────────────────────────────────────────────────
+    const DAILY_CODE_KEY = 'charm_daily_code';
+
+    function nextMidnightMs() {
+        const t = new Date();
+        t.setHours(24, 0, 0, 0);
+        return t.getTime();
+    }
+
+    function loadDailyCodeEntry() {
+        try {
+            const s = JSON.parse(localStorage.getItem(DAILY_CODE_KEY) || 'null');
+            if (s && s.code && s.expiresAt > Date.now()) return s;
+        } catch (_) {}
+        return null;
+    }
+
+    function saveDailyCode(code) {
+        if (!code) return;
+        localStorage.setItem(DAILY_CODE_KEY, JSON.stringify({
+            code: code.toUpperCase().slice(0, 2),
+            expiresAt: nextMidnightMs()
+        }));
+    }
+
+    function applyCodeToLiveTickets(code) {
+        document.querySelectorAll('.box-code').forEach(el => { el.textContent = code; });
+    }
+
+    function updateDailyCodeStatus() {
+        const entry = loadDailyCodeEntry();
+        const statusEl = document.getElementById('daily-code-status');
+        const input    = document.getElementById('in-code');
+        if (entry) {
+            const exp = new Date(entry.expiresAt);
+            const hh  = exp.getHours().toString().padStart(2,'0');
+            const mm  = exp.getMinutes().toString().padStart(2,'0');
+            if (statusEl) { statusEl.textContent = `expires ${exp.getMonth()+1}/${exp.getDate()} ${hh}:${mm}`; statusEl.style.color = '#4caf50'; }
+            if (input && !input.value) input.value = entry.code;
+        } else {
+            if (statusEl) { statusEl.textContent = 'no code set for today'; statusEl.style.color = '#ff5722'; }
+        }
+    }
+
+    function scheduleMidnightReset() {
+        const msLeft = nextMidnightMs() - Date.now();
+        setTimeout(() => {
+            // Code expired — clear live tickets and update status
+            applyCodeToLiveTickets('??');
+            const input = document.getElementById('in-code');
+            if (input) { input.value = ''; input.style.borderColor = '#ff5722'; }
+            updateDailyCodeStatus();
+            // Check every minute until a new code is entered
+            const poller = setInterval(() => {
+                if (loadDailyCodeEntry()) { clearInterval(poller); updateDailyCodeStatus(); }
+            }, 60000);
+        }, msLeft + 500);
+    }
+
+    // Wire up the code input: save on change, propagate to live tickets immediately
+    document.getElementById('in-code').addEventListener('input', function() {
+        const v = this.value.toUpperCase();
+        this.value = v;
+        this.style.borderColor = '';
+        if (v.length === 2) {
+            saveDailyCode(v);
+            applyCodeToLiveTickets(v);
+            updateDailyCodeStatus();
+        }
+    });
+
+    async function fetchRealDailyCode() {
+        try {
+            const r = await fetch('/api/daily-code');
+            if (!r.ok) throw new Error(r.status);
+            const data = await r.json();
+            if (data.code && data.code.length === 2) {
+                localStorage.setItem(DAILY_CODE_KEY, JSON.stringify({
+                    code: data.code.toUpperCase(),
+                    expiresAt: data.expiresAt
+                }));
+                applyCodeToLiveTickets(data.code);
+                document.getElementById('in-code').value = data.code.toUpperCase();
+                updateDailyCodeStatus();
+            }
+        } catch (_) {
+            // server unavailable — fall back to localStorage
+        }
+    }
+
+    // Initialize on load
+    updateDailyCodeStatus();
+    scheduleMidnightReset();
+
+    // Pre-fill input from stored code
+    const _stored = loadDailyCodeEntry();
+    if (_stored) document.getElementById('in-code').value = _stored.code;
+
+    // Fetch real code from server, then refresh every 10 minutes
+    fetchRealDailyCode();
+    setInterval(fetchRealDailyCode, 10 * 60 * 1000);
+    // ─────────────────────────────────────────────────────────────────────────
 
     function updateForm() {
-        document.getElementById('od-group').style.display =
-            document.getElementById('in-service').value === 'marc' ? 'block' : 'none';
+        const isMarc = document.getElementById('in-service').value === 'marc';
+        document.getElementById('od-group').style.display = isMarc ? 'block' : 'none';
+        if (isMarc) updateMarcStations();
     }
 
     document.getElementById('launch-btn').onclick = () => {
         const service = document.getElementById('in-service').value;
         const letter  = service === 'marc' ? 'R' : 'F';
-        const code    = document.getElementById('in-code').value.toUpperCase();
-        const qrData  = document.getElementById('in-qr').value;
-        const count   = parseInt(document.getElementById('in-count').value) || 1;
+        const typedCode = document.getElementById('in-code').value.toUpperCase();
+        const code = typedCode || (loadDailyCodeEntry() || {}).code || '??';
+        if (typedCode.length === 2) saveDailyCode(typedCode);
+        const count = parseInt(document.getElementById('in-count').value) || 1;
         const now = new Date();
 
         // Switch to this service's context
@@ -413,12 +588,12 @@
         },
         ".box-code": {
           "font-size": "54px",
-          "left": "324px",
+          "left": "319px",
           "top": "110px",
           "opacity": "1",
           "width": "62px",
           "height": "46px",
-          "letter-spacing": "-4px"
+          "letter-spacing": "-1px"
         },
         "#ref-1775247350507": {
           "left": "212px",
@@ -521,7 +696,7 @@
         },
         ".expire-time": {
           "font-size": "22px",
-          "top": "20px",
+          "top": "25px",
           "left": "23.588361504033863px",
           "letter-spacing": "-1px"
         },
