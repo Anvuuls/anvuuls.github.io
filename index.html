@@ -194,7 +194,12 @@
         <div id="qr-full"></div>
     </div>
 
+    <script src="daily_code.js"></script>
     <script>
+    if (typeof DAILY_CODE !== 'undefined' && DAILY_CODE.code) {
+        document.getElementById('in-code').value = DAILY_CODE.code;
+    }
+
     // ── Station data & setup form ──────────────────────────────────────────────
     // Real names/abbreviations from MTA API (GetPhrases + GetProducts)
     const marcLines = {
