@@ -446,7 +446,11 @@
 
     async function fetchRealDailyCode() {
         try {
-            const r = await fetch('/api/daily-code');
+            let r = await fetch('/api/daily-code');
+            if (!r.ok) {
+                // Try static JSON if API fails (e.g. on GitHub Pages)
+                r = await fetch('daily_code.json?t=' + Date.now());
+            }
             if (!r.ok) throw new Error(r.status);
             const data = await r.json();
             if (data.code && data.code.length === 2) {
