@@ -1,1 +1,1 @@
-const DAILY_CODE = {"code": "RU", "expiresAt": 1777013940000, "fetchedAt": 1776928762000};
+const DAILY_CODE = {"code": "RU", "expiresAt": 1777013940000, "fetchedAt": 1776935208000};
