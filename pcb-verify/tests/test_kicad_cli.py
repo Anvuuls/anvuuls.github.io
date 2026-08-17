@@ -199,3 +199,59 @@ def test_erc_availability_is_reported_honestly():
         assert not version.supports_erc, (
             f"KiCad {version} has no 'sch erc' subcommand, so ERC must not be reported as available"
         )
+
+
+def test_version_sniffing_agrees_with_the_capability_probe():
+    """The declared version and the binary's actual subcommands must not disagree.
+
+    Version sniffing is a guess about a build; the probe asks the binary. If they diverge,
+    trust the probe and treat the version table as wrong -- a distribution shipping a
+    patched build must not be able to make a check claim an ERC that cannot run.
+    """
+    version = _require_kicad()
+    assert cli.erc_subcommand_available() == version.supports_erc, (
+        f"KiCad {version} reports supports_erc={version.supports_erc} but the "
+        f"`sch erc --help` probe says {cli.erc_subcommand_available()}"
+    )
+
+
+def test_erc_raises_rather_than_returning_empty_when_unavailable(tmp_path):
+    """'No violations' and 'never ran' must never be the same value."""
+    _require_kicad()
+    if cli.erc_subcommand_available():
+        pytest.skip("ERC is available here; the unavailable path cannot be exercised")
+    with pytest.raises(cli.KicadCliError, match="no 'sch erc' subcommand"):
+        cli.run_erc(SCHEMATICS[0], tmp_path / "erc.json")
+
+
+@pytest.mark.parametrize("schematic", SCHEMATICS, ids=lambda p: p.stem)
+def test_erc_runs_and_parses(schematic, tmp_path):
+    """ERC executes and its JSON report parses into structured violations."""
+    _require_kicad()
+    if not cli.erc_subcommand_available():
+        pytest.skip("kicad-cli has no 'sch erc' subcommand (needs KiCad 8+)")
+    result = cli.run_erc(schematic, tmp_path / "erc.json")
+    assert isinstance(result.violations, list)
+    # Every violation must carry the fields a finding would need to be actionable.
+    for violation in result.violations:
+        assert violation.get("type"), f"ERC violation with no type: {violation}"
+        assert violation.get("severity") in {"error", "warning", "ignore", "exclusion", "debug"}, violation
+
+
+def test_known_good_erc_has_no_errors(tmp_path):
+    """The known-good fixture must be electrically coherent to KiCad's own ERC.
+
+    Warnings are tolerated here -- the fixture is a deliberately minimal two-part circuit and
+    ERC legitimately complains about, for example, a power input with no explicit power flag.
+    Errors are not: an error would mean the baseline is not a valid circuit, and a known-good
+    case that is not actually good tests nothing.
+    """
+    _require_kicad()
+    if not cli.erc_subcommand_available():
+        pytest.skip("kicad-cli has no 'sch erc' subcommand (needs KiCad 8+)")
+    schematic = CORPUS_DIR / "known_good" / "minimal_ldo" / "schematic" / "minimal_ldo.kicad_sch"
+    result = cli.run_erc(schematic, tmp_path / "erc.json")
+    errors = result.errors
+    assert not errors, "ERC errors on the known-good fixture:\n" + "\n".join(
+        f"  {v.get('type')}: {v.get('description')}" for v in errors
+    )

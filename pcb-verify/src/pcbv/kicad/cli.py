@@ -11,6 +11,7 @@ a pass on a schematic nobody ran ERC over.
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -96,6 +97,83 @@ def export_netlist(schematic: Path, output: Path, *, timeout: int = DEFAULT_TIME
     if not output.is_file() or output.stat().st_size == 0:
         raise KicadCliError(f"{schematic}: kicad-cli produced no netlist")
     return output.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
+def erc_subcommand_available() -> bool:
+    """Probe whether ``sch erc`` actually exists, rather than inferring it from a version.
+
+    Version sniffing is a guess about a build; this asks the binary. A distribution could
+    ship a patched or partial build, and a check that assumed ERC was present would then
+    report a pass for an ERC that never ran.
+    """
+    if kicad_cli_path() is None:
+        return False
+    try:
+        result = _run(["sch", "erc", "--help"], timeout=60)
+    except (KicadCliError, subprocess.SubprocessError, OSError):
+        return False
+    # KiCad 7 has no 'erc' subcommand and exits non-zero with a usage error listing only
+    # the subcommands it does have. A zero exit from `sch erc --help` means it exists.
+    return result.returncode == 0
+
+
+@dataclass(frozen=True)
+class ErcResult:
+    """Parsed ERC report."""
+
+    violations: list[dict]
+    raw: dict
+
+    def by_severity(self, severity: str) -> list[dict]:
+        return [v for v in self.violations if v.get("severity") == severity]
+
+    @property
+    def errors(self) -> list[dict]:
+        return self.by_severity("error")
+
+    @property
+    def warnings(self) -> list[dict]:
+        return self.by_severity("warning")
+
+
+def run_erc(schematic: Path, output: Path, *, timeout: int = DEFAULT_TIMEOUT) -> ErcResult:
+    """Run KiCad ERC and return the parsed report.
+
+    Raises when ERC is unavailable instead of returning an empty result: "no violations"
+    and "never ran" must never be the same value.
+    """
+    if not erc_subcommand_available():
+        version = kicad_version()
+        raise KicadCliError(
+            f"kicad-cli {version or '(absent)'} has no 'sch erc' subcommand; ERC cannot be "
+            f"reported as passing"
+        )
+
+    result = _run(
+        [
+            "sch", "erc",
+            "--output", str(output),
+            "--format", "json",
+            "--severity-all",
+            str(schematic),
+        ],
+        timeout=timeout,
+    )
+    combined = f"{result.stdout}{result.stderr}"
+    if "Failed to load" in combined or "Unable to load" in combined:
+        raise KicadCliError(f"{schematic}: kicad-cli could not load the schematic for ERC: {combined.strip()}")
+    if not output.is_file():
+        raise KicadCliError(f"{schematic}: ERC produced no report ({combined.strip()})")
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    violations: list[dict] = []
+    for sheet in report.get("sheets", []):
+        for violation in sheet.get("violations", []):
+            enriched = dict(violation)
+            enriched.setdefault("sheet", sheet.get("path", "/"))
+            violations.append(enriched)
+    return ErcResult(violations=violations, raw=report)
 
 
 def load_symbol_library(library: Path, *, timeout: int = DEFAULT_TIMEOUT) -> None:

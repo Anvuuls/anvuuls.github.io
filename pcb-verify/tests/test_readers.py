@@ -7,6 +7,9 @@ tested explicitly.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 
 from pcbv.kicad.footprint import find_footprint, read_footprint_library
@@ -199,3 +202,43 @@ def test_capacitors_have_no_mpn_in_fixture():
     """Documents the deliberate coverage gap the known-good case records as INFO findings."""
     design = read_schematic(GOOD_SCH)
     assert design.component("C1").mpn == ""
+
+
+# ------------------------------------------------------------------ format portability
+
+#: File-format versions the fixtures are deliberately pinned to. These are the OLDEST
+#: formats we support, which is the point: KiCad reads older formats forward but never newer
+#: ones backward, so pinning low keeps the corpus loadable by every KiCad from 7 through 10.
+#: Running `kicad-cli sym upgrade` with a newer KiCad would silently rewrite these and drop
+#: support for older toolchains -- including the Ubuntu-archive KiCad that CI falls back to.
+PINNED_FORMAT_VERSIONS = {
+    ".kicad_sch": 20230121,
+    ".kicad_sym": 20220914,
+    ".kicad_mod": 20221018,
+}
+
+_VERSION_RE = re.compile(r"\(version (\d{8})\)")
+
+
+def _fixture_files(suffix: str) -> list[Path]:
+    return sorted(CORPUS_DIR.rglob(f"*{suffix}"))
+
+
+@pytest.mark.parametrize("suffix", sorted(PINNED_FORMAT_VERSIONS))
+def test_fixture_format_versions_are_pinned_low(suffix):
+    """Fixtures must stay in the oldest format we support, for maximum KiCad compatibility."""
+    expected = PINNED_FORMAT_VERSIONS[suffix]
+    files = _fixture_files(suffix)
+    assert files, f"no {suffix} fixtures found"
+
+    for path in files:
+        match = _VERSION_RE.search(path.read_text(encoding="utf-8"))
+        assert match, f"{path}: no (version NNNNNNNN) header found"
+        actual = int(match.group(1))
+        assert actual == expected, (
+            f"{path} declares format version {actual}, expected {expected}. "
+            f"KiCad reads older formats forward but not newer ones backward, so upgrading a "
+            f"fixture drops support for older KiCad -- including the archive build CI falls "
+            f"back to. If this upgrade is intended, change PINNED_FORMAT_VERSIONS "
+            f"deliberately and note the new minimum KiCad in the README."
+        )
