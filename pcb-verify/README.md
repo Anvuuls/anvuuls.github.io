@@ -43,11 +43,21 @@ implementing check yet, and an unimplemented gate evaluates to `BLOCKED` rather 
 | **CHK-PIN-MAP**: datasheet pin table ↔ symbol ↔ footprint pads | working |
 | CHK-PROJECT-SCHEMA: requirements validity, rail-name drift | working |
 | Corpus: 1 known-good + 3 known-bad, contract-matched | working |
-| Fixtures verified loadable by real KiCad (`kicad-cli` 7.0.11) | working |
+| Fixtures verified loadable by real KiCad (7.0.11 and **10.0.5**) | working |
 | Readers cross-checked against KiCad's own netlist as oracle | working |
+| KiCad ERC runs and parses; fixtures are ERC-error-free | working |
 | Everything else in `gates.yaml` (24 gates) | **not implemented** |
 
-142 tests, of which 22 use KiCad as an oracle.
+152 tests, of which 30 use KiCad as an oracle.
+
+### What ERC proved
+
+Running KiCad 10's ERC over the corpus produced **zero errors on all three deliberately
+broken designs**. A regulator output on an unbonded pad, a package with transposed pin
+numbering, a power connector wired backwards — ERC sees none of them, because it only knows
+pin electrical types and connectivity, never what the datasheet says. That result is
+asserted as a test (`test_erc_is_blind_to_every_defect_in_the_corpus`), and it is the
+empirical case for this project existing.
 
 The 24 unimplemented gates are declared with `implemented: false`, so they report `BLOCKED`.
 Nothing here reports a vacuous pass.
@@ -132,15 +142,34 @@ known-bad corpus. Do not build a `.kicad_sch` writer.
   known-good fixture's netlist is asserted, but no check consumes it — that is Phase 1.
   Several corpus cases record the gap in their `not_yet_detected` sections.
 - **ERC needs KiCad 8 or newer.** `kicad-cli sch erc` does not exist in KiCad 7, which is
-  what Ubuntu 24.04 ships. `CHK-ERC` therefore stays unimplemented and the `ERC` gate stays
-  `BLOCKED`; `cli.kicad_version().supports_erc` reports the capability honestly rather than
-  letting a check claim a pass on a schematic nobody ran ERC over. Phase 1 pairs CHK-ERC with
-  a KiCad 8+ toolchain.
+  what Ubuntu 24.04 ships. Availability is established by probing `sch erc --help`, not by
+  inferring it from a version string, and `run_erc` raises rather than returning an empty
+  result when it is unavailable — "no violations" and "never ran" must never be the same
+  value. `CHK-ERC` itself is still unimplemented (the plumbing exists; the check and its
+  corpus case are Phase 1), so the `ERC` gate remains `BLOCKED`.
 - **`kicad-cli` is optional locally.** Without it the 22 oracle tests skip with an explicit
   "fixture validity is UNVERIFIED" message, and CI fails the job if they skip there.
 - **The example parts are fictional.** `EXAMPLE-LDO-3V3` and `EXAMPLE-CONN-2P` do not exist.
   Their stand-in datasheets are plain text with real SHA-256 hashes so citations are
   genuinely greppable; no number in them belongs in a real design.
+
+## Toolchain provenance
+
+Verified against **KiCad 7.0.11** (Ubuntu 24.04 archive) and **KiCad 10.0.5** (built from
+source, GitLab tag `10.0.5`, commit `18fb9289`). Fixtures load and produce identical
+netlists under both.
+
+KiCad 10 could not be installed from any packaged source in the development container:
+`kicad.org`, `downloads.kicad.org`, `ppa.launchpadcontent.net`, Flathub, Snapcraft and
+Anaconda are all denied by the environment's egress policy, and no Ubuntu suite carries
+KiCad 10 (26.10 devel still ships 9.0.8). GitLab is permitted, so it was built from source.
+On a machine that can reach the PPA, `ppa:kicad/kicad-10.0-releases` is a one-line install
+and this is unnecessary.
+
+Building 10.0.5 on Ubuntu 24.04 needs one dependency cmake does not catch:
+`libpoppler-glib-dev`. Configuration succeeds with only poppler core and cpp present, then
+compilation fails ~190 files in on a missing `poppler/glib/poppler.h`. OCC and ngspice are
+unconditionally required in KiCad 10 — there is no option to build without them.
 
 ## Authoring corpus fixtures
 
@@ -152,6 +181,15 @@ Two traps, both of which produced a fixture that loaded fine and tested nothing:
    quietly shows each pin on its own `unconnected-(...)` net.
 2. **A `no_connect`-type pin never joins a net at all.** Wiring one up looks right in the
    file and is silently dropped.
+3. **Nets carrying a `power_in` pin need a `power_out` driver or ERC errors.** The corpus
+   header's contacts are `passive`, so VIN and GND get `PWR_FLAG` symbols — which is honest
+   here, since VIN genuinely arrives from off-board. Their `#FLG` references are skipped by
+   the schematic reader, so they never reach the checks.
+
+Parse netlists with `pcbv.sexpr`, never with regexes over the text. KiCad 7 emitted
+`(comp (ref "U1")` on one line; KiCad 10 pretty-prints every element on its own. Any
+line-shape assumption silently stops matching on a toolchain upgrade, and a parser that
+returns nothing looks exactly like a design with no components.
 
 Symbol-local pin coordinates map to schematic coordinates as `(px + lx, py - ly)` for an
 unrotated instance. Do not trust that from memory — probe it: drop uniquely-named global

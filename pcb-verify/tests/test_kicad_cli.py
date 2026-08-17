@@ -238,6 +238,33 @@ def test_erc_runs_and_parses(schematic, tmp_path):
         assert violation.get("severity") in {"error", "warning", "ignore", "exclusion", "debug"}, violation
 
 
+def test_erc_is_blind_to_every_defect_in_the_corpus(tmp_path):
+    """ERC passes cleanly on all three deliberately broken designs.
+
+    This is the empirical justification for the whole project. Each known-bad case contains
+    a defect that would produce a dead board -- a regulator output on an unbonded pad, a
+    package whose pin numbering is transposed, a power connector wired backwards -- and
+    KiCad's own electrical rules check reports zero errors on all of them, because ERC only
+    knows pin electrical types and connectivity. It cannot know what the datasheet says.
+
+    If this test ever starts failing because ERC got smarter, that is good news and the
+    assertion should be relaxed deliberately rather than deleted.
+    """
+    _require_kicad()
+    if not cli.erc_subcommand_available():
+        pytest.skip("kicad-cli has no 'sch erc' subcommand (needs KiCad 8+)")
+
+    for case in discover_cases():
+        if case.kind != "known_bad":
+            continue
+        schematic = case.directory / "schematic" / f"{case.name}.kicad_sch"
+        result = cli.run_erc(schematic, tmp_path / f"{case.name}.json")
+        assert not result.errors, (
+            f"{case.name}: ERC now reports errors; if ERC has genuinely learned to catch "
+            f"this defect class, relax this assertion deliberately"
+        )
+
+
 def test_known_good_erc_has_no_errors(tmp_path):
     """The known-good fixture must be electrically coherent to KiCad's own ERC.
 

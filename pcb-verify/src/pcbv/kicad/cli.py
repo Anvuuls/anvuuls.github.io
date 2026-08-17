@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from ..sexpr import Node, loads
+
 #: ``kicad-cli sch erc`` was introduced in KiCad 8.0.
 ERC_MIN_MAJOR = 8
 
@@ -207,16 +209,31 @@ def load_footprint_library(pretty_dir: Path, *, timeout: int = DEFAULT_TIMEOUT) 
 
 # ------------------------------------------------------------------ netlist parsing
 
-_COMP_RE = re.compile(r'\(comp \(ref "([^"]+)"\)')
-_LIBPART_RE = re.compile(r'\(libpart \(lib "([^"]*)"\) \(part "([^"]*)"\)')
-_PIN_RE = re.compile(r'\(pin \(num "([^"]*)"\) \(name "([^"]*)"\) \(type "([^"]*)"\)\)')
-_NET_RE = re.compile(r'\(net \(code "[^"]*"\) \(name "([^"]*)"\)((?:\s*\(node [^\n]*\))*)')
-_NODE_RE = re.compile(r'\(node \(ref "([^"]+)"\) \(pin "([^"]+)"\)')
+# Parsed with the project's own s-expression reader rather than regexes. KiCad 7 emitted
+# `(comp (ref "U1")` on one line while KiCad 10 pretty-prints each element on its own, so
+# any line-shape assumption silently stops matching on a toolchain upgrade -- and a parser
+# that returns nothing looks exactly like a design with no components.
+
+
+def _parse_netlist(netlist: str) -> Node:
+    root = loads(netlist)
+    if root.head != "export":
+        raise KicadCliError(f"expected a KiCad netlist starting with (export ...), got ({root.head} ...)")
+    return root
 
 
 def netlist_components(netlist: str) -> list[str]:
     """Reference designators KiCad found, sorted."""
-    return sorted(set(_COMP_RE.findall(netlist)))
+    root = _parse_netlist(netlist)
+    components = root.find("components")
+    if components is None:
+        return []
+    refs = []
+    for comp in components.find_all("comp"):
+        ref = comp.child_str("ref")
+        if ref:
+            refs.append(str(ref))
+    return sorted(set(refs))
 
 
 def netlist_libpart_pins(netlist: str) -> dict[str, list[tuple[str, str, str]]]:
@@ -225,14 +242,27 @@ def netlist_libpart_pins(netlist: str) -> dict[str, list[tuple[str, str, str]]]:
     This is the oracle for our symbol reader: KiCad's own view of every pin in every symbol
     the design uses.
     """
+    root = _parse_netlist(netlist)
+    libparts = root.find("libparts")
     out: dict[str, list[tuple[str, str, str]]] = {}
-    blocks = netlist.split("(libpart ")
-    for block in blocks[1:]:
-        match = _LIBPART_RE.match("(libpart " + block)
-        if not match:
-            continue
-        key = f"{match.group(1)}:{match.group(2)}"
-        out[key] = _PIN_RE.findall(block)
+    if libparts is None:
+        return out
+
+    for libpart in libparts.find_all("libpart"):
+        lib = libpart.child_str("lib") or ""
+        part = libpart.child_str("part") or ""
+        pins_node = libpart.find("pins")
+        pins: list[tuple[str, str, str]] = []
+        if pins_node is not None:
+            for pin in pins_node.find_all("pin"):
+                pins.append(
+                    (
+                        str(pin.child_str("num") or ""),
+                        str(pin.child_str("name") or ""),
+                        str(pin.child_str("type") or ""),
+                    )
+                )
+        out[f"{lib}:{part}"] = pins
     return out
 
 
@@ -242,7 +272,17 @@ def netlist_nets(netlist: str) -> dict[str, list[tuple[str, str]]]:
     This is the input Phase 1's connectivity checks need, and the canonical review unit for
     a hardware change: raw .kicad_sch diffs are not human-reviewable, normalized netlists are.
     """
+    root = _parse_netlist(netlist)
+    nets = root.find("nets")
     out: dict[str, list[tuple[str, str]]] = {}
-    for name, nodes_blob in _NET_RE.findall(netlist):
-        out[name] = sorted(_NODE_RE.findall(nodes_blob))
+    if nets is None:
+        return out
+
+    for net in nets.find_all("net"):
+        name = str(net.child_str("name") or "")
+        nodes = [
+            (str(node.child_str("ref") or ""), str(node.child_str("pin") or ""))
+            for node in net.find_all("node")
+        ]
+        out[name] = sorted(nodes)
     return out
