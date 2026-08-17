@@ -155,3 +155,18 @@ it fires and the known-good case proves it does not false-positive.
 **Adding a check without a known-bad case is not allowed.** A verification suite with no
 corpus is untested software, and "all gates PASS" from untested software carries no
 information.
+
+## KiCad is the oracle, not our parser
+
+`tests/test_kicad_cli.py` checks our readers against `kicad-cli` itself: same components,
+same pins, same electrical types. Without it, a self-consistently wrong reader would make
+every downstream check compare against something the board does not use.
+
+When adding a fixture, verify it loads (`cli.export_netlist` raises if not) and assert its
+netlist. Note that `kicad-cli` 7 exits 0 even after printing "Failed to load schematic
+file", so exit status alone is not a usable signal — that is why the wrapper inspects the
+output text and the produced file.
+
+Version-dependent capabilities must be reported, never assumed: `sch erc` does not exist
+before KiCad 8.0. A check whose tool is missing reports unavailable and leaves its gate
+`BLOCKED`. It must never report a pass.

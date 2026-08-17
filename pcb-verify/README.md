@@ -43,7 +43,11 @@ implementing check yet, and an unimplemented gate evaluates to `BLOCKED` rather 
 | **CHK-PIN-MAP**: datasheet pin table ↔ symbol ↔ footprint pads | working |
 | CHK-PROJECT-SCHEMA: requirements validity, rail-name drift | working |
 | Corpus: 1 known-good + 3 known-bad, contract-matched | working |
+| Fixtures verified loadable by real KiCad (`kicad-cli` 7.0.11) | working |
+| Readers cross-checked against KiCad's own netlist as oracle | working |
 | Everything else in `gates.yaml` (24 gates) | **not implemented** |
+
+142 tests, of which 22 use KiCad as an oracle.
 
 The 24 unimplemented gates are declared with `implemented: false`, so they report `BLOCKED`.
 Nothing here reports a vacuous pass.
@@ -123,15 +127,38 @@ known-bad corpus. Do not build a `.kicad_sch` writer.
 
 ## Known limitations
 
-- **Connectivity is not read yet.** `CHK-PIN-MAP` compares pin *identity*, not what is
-  wired to what. Netlist extraction is Phase 1, and several corpus cases record this gap in
-  their `not_yet_detected` sections.
-- **The corpus fixtures were hand-written without KiCad available.** The `kicad-fixtures` CI
-  job opens them with `kicad-cli` to prove they are real KiCad files rather than a private
-  dialect our own parser happens to accept. Until that job has run green, treat fixture
-  validity as unconfirmed.
-- **`kicad-cli` is not required locally.** Checks needing it are Phase 1 and will be marked
-  `requires_kicad_cli`, skipping cleanly rather than reporting a false pass.
+- **Connectivity is not used by any check yet.** `CHK-PIN-MAP` compares pin *identity*, not
+  what is wired to what. `pcbv.kicad.cli.netlist_nets` extracts connectivity and the
+  known-good fixture's netlist is asserted, but no check consumes it — that is Phase 1.
+  Several corpus cases record the gap in their `not_yet_detected` sections.
+- **ERC needs KiCad 8 or newer.** `kicad-cli sch erc` does not exist in KiCad 7, which is
+  what Ubuntu 24.04 ships. `CHK-ERC` therefore stays unimplemented and the `ERC` gate stays
+  `BLOCKED`; `cli.kicad_version().supports_erc` reports the capability honestly rather than
+  letting a check claim a pass on a schematic nobody ran ERC over. Phase 1 pairs CHK-ERC with
+  a KiCad 8+ toolchain.
+- **`kicad-cli` is optional locally.** Without it the 22 oracle tests skip with an explicit
+  "fixture validity is UNVERIFIED" message, and CI fails the job if they skip there.
 - **The example parts are fictional.** `EXAMPLE-LDO-3V3` and `EXAMPLE-CONN-2P` do not exist.
   Their stand-in datasheets are plain text with real SHA-256 hashes so citations are
   genuinely greppable; no number in them belongs in a real design.
+
+## Authoring corpus fixtures
+
+Two traps, both of which produced a fixture that loaded fine and tested nothing:
+
+1. **KiCad derives connectivity from wire *endpoints*.** A pin lying part-way along a wire
+   segment does **not** connect, even with a junction dot drawn on it. Split every wire at
+   every connection point. The symptom is a fixture that loads cleanly and whose netlist
+   quietly shows each pin on its own `unconnected-(...)` net.
+2. **A `no_connect`-type pin never joins a net at all.** Wiring one up looks right in the
+   file and is silently dropped.
+
+Symbol-local pin coordinates map to schematic coordinates as `(px + lx, py - ly)` for an
+unrotated instance. Do not trust that from memory — probe it: drop uniquely-named global
+labels at candidate coordinates, export the netlist, and read which pin joined which label.
+
+Prefer letting KiCad canonicalize what you write: `kicad-cli sym upgrade` and
+`kicad-cli fp upgrade` rewrite libraries into KiCad's own formatting, so the committed
+fixture is the reference implementation's output rather than our guess at its syntax. There
+is no equivalent for schematics, so those stay hand-written and are covered by the oracle
+tests instead.

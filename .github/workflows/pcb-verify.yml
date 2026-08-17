@@ -46,6 +46,7 @@ jobs:
         run: pcbv corpus
 
       - name: Unit and corpus tests
+        # KiCad-oracle tests skip here and run in the kicad-oracle job instead.
         run: python -m pytest -q
 
       - name: Show the canonical gate model
@@ -62,52 +63,49 @@ jobs:
           fi
           echo "release verdict is correctly NOT_RELEASED"
 
-  kicad-fixtures:
-    name: KiCad accepts the corpus fixtures
+  kicad-oracle:
+    name: KiCad accepts the fixtures and agrees with our readers
     runs-on: ubuntu-latest
-    container:
-      image: kicad/kicad:8.0
-      options: --user root
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show kicad-cli version
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      # Installed from the Ubuntu archive rather than a third-party container image, because
+      # this is the exact provenance the fixtures were verified against during development.
+      # Ubuntu 24.04 ships KiCad 7.0.x. Note that `kicad-cli sch erc` does not exist before
+      # KiCad 8.0, so ERC is not run here -- CHK-ERC lands in Phase 1 together with a KiCad
+      # 8+ toolchain. Claiming an ERC pass on a KiCad that cannot run ERC would be exactly
+      # the kind of hollow green check this project exists to prevent.
+      - name: Install KiCad
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends kicad
+
+      # Fails the job outright if KiCad is missing, so the oracle tests can never be
+      # silently skipped into a green run.
+      - name: Confirm kicad-cli is present
         run: kicad-cli version
 
-      # The corpus .kicad_sch / .kicad_sym / .kicad_mod files are hand-written, and the
-      # development container had no KiCad to open them with. This job is the check that
-      # they are real KiCad files and not merely files our own parser happens to accept --
-      # without it, the whole corpus could be testing a private dialect of s-expressions.
-      - name: Open every fixture schematic with kicad-cli
+      - name: Every fixture loads in KiCad, and our readers agree with it
+        run: python -m pytest -m requires_kicad -q -rs
+
+      - name: Guard against the oracle tests being skipped
         run: |
           set -euo pipefail
-          status=0
-          for sch in $(find tests/corpus -name '*.kicad_sch' | sort); do
-            echo "--- $sch"
-            if ! kicad-cli sch export netlist --output /tmp/out.net "$sch"; then
-              echo "::error file=$sch::kicad-cli could not read this schematic"
-              status=1
-            fi
-          done
-          exit $status
+          out="$(python -m pytest -m requires_kicad -q -rs 2>&1 | tail -5)"
+          echo "$out"
+          if echo "$out" | grep -qi 'skipped'; then
+            echo "::error::KiCad-oracle tests were skipped; fixture validity is unverified"
+            exit 1
+          fi
 
-      - name: Run KiCad ERC on every fixture schematic
-        run: |
-          set -euo pipefail
-          for sch in $(find tests/corpus -name '*.kicad_sch' | sort); do
-            echo "--- ERC $sch"
-            # ERC findings are expected on these deliberately minimal fixtures; this step
-            # proves ERC runs and parses, and records the report as an artifact. It is not
-            # yet a gate -- CHK-ERC lands in Phase 1.
-            kicad-cli sch erc --output "/tmp/$(basename "$sch").erc.json" \
-              --format json --exit-code-violations "$sch" || true
-          done
-
-      - name: Upload ERC reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: erc-reports
-          path: /tmp/*.erc.json
-          if-no-files-found: warn
+      - name: Full suite with KiCad available
+        run: python -m pytest -q
