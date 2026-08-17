@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/requirement.schema.json",
+  "title": "Extracted datasheet requirements",
+  "description": "library/parts/<MPN>/requirements.yaml. Machine-readable engineering requirements extracted from authoritative documentation. Every entry carries a verbatim snippet that scripts/verify_citations re-greps against the cached extracted text: an unverifiable citation FAILS and counts as no evidence at all, which is what stops a hallucinated page number from being laundered into evidence level A. Minimum evidence per severity is enforced below, so a CRITICAL requirement resting on inference is a schema error rather than a judgement call.",
+  "type": "object",
+  "required": ["schema_version", "mpn", "requirements"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "requirement_id", "category", "parameter", "severity",
+          "mandatory", "evidence", "verification_status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "requirement_id": { "$ref": "common.defs.json#/$defs/requirement_id" },
+
+          "category": {
+            "type": "string",
+            "enum": [
+              "power", "absolute_maximum", "recommended_operating", "decoupling",
+              "clock", "reset", "boot", "interface", "mandatory_external_component",
+              "layout", "thermal", "rf", "startup", "sequencing", "protection", "other"
+            ]
+          },
+
+          "package": {
+            "description": "Set when the requirement is package-specific.",
+            "$ref": "common.defs.json#/$defs/package_name"
+          },
+
+          "parameter": { "type": "string", "minLength": 1 },
+          "requirement_text": {
+            "description": "The requirement stated in engineering terms, distinct from the raw snippet.",
+            "type": "string"
+          },
+
+          "min": { "$ref": "common.defs.json#/$defs/verified_value" },
+          "typical": { "$ref": "common.defs.json#/$defs/verified_value" },
+          "max": { "$ref": "common.defs.json#/$defs/verified_value" },
+          "value": { "$ref": "common.defs.json#/$defs/verified_value" },
+
+          "applies_to_pins": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "severity": { "$ref": "common.defs.json#/$defs/severity" },
+          "mandatory": { "type": "boolean" },
+
+          "is_absolute_maximum": {
+            "description": "True marks a limit that must never be a design target. Reports flag any operating point derived from an absolute maximum.",
+            "type": "boolean",
+            "default": false
+          },
+
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "common.defs.json#/$defs/graded_citation" }
+          },
+
+          "verification_status": {
+            "description": "Whether the DESIGN satisfies this requirement. Separate from whether the requirement itself was verified against the source.",
+            "type": "string",
+            "enum": ["NOT_CHECKED", "PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE", "WAIVED"]
+          },
+
+          "implemented_by": {
+            "description": "How the design satisfies it, e.g. 'C4 100nF at U1 pin 3'.",
+            "type": "string"
+          },
+
+          "unknowns": {
+            "description": "Named gaps that stop this requirement being fully established.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "waiver_id": { "$ref": "common.defs.json#/$defs/identifier" }
+        },
+
+        "allOf": [
+          {
+            "description": "CRITICAL requirements admit only manufacturer-grade evidence: datasheet, application note / design guideline, or reference design. Inference is forbidden here.",
+            "if": {
+              "properties": { "severity": { "const": "CRITICAL" } },
+              "required": ["severity"]
+            },
+            "then": {
+              "properties": {
+                "evidence": {
+                  "contains": {
+                    "properties": { "evidence_level": { "enum": ["A", "B", "C"] } },
+                    "required": ["evidence_level"]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "description": "HIGH requirements need manufacturer evidence or a documented human-reviewed calculation.",
+            "if": {
+              "properties": { "severity": { "const": "HIGH" } },
+              "required": ["severity"]
+            },
+            "then": {
+              "properties": {
+                "evidence": {
+                  "contains": {
+                    "properties": { "evidence_level": { "enum": ["A", "B", "C", "D"] } },
+                    "required": ["evidence_level"]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "description": "A requirement claiming PASS must have at least one citation the verifier confirmed.",
+            "if": {
+              "properties": { "verification_status": { "const": "PASS" } },
+              "required": ["verification_status"]
+            },
+            "then": {
+              "properties": {
+                "evidence": {
+                  "contains": {
+                    "properties": { "snippet_verified": { "const": true } },
+                    "required": ["snippet_verified"]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

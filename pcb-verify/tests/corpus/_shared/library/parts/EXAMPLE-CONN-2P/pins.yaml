@@ -1,0 +1,38 @@
+# The connector's contacts are named P1/P2 by the manufacturer. The corpus schematic uses
+# VIN and GND as the symbol pin names, declared here as aliases -- that is the legitimate
+# use of the alias field, and it is why the reversed_connector_pinout case is detectable:
+# an alias permits an alternative NAME for a given contact NUMBER, never a different
+# number.
+
+mpn: EXAMPLE-CONN-2P
+package: CONN-1x02-P2.54
+
+source:
+  source_id: EX-CN-0002
+  section: Section 2 Pin Assignment
+  table: Table 2-1
+  transcribed_by: corpus fixture
+  transcribed_at: '2026-08-17'
+
+pins:
+  - number: '1'
+    name: P1
+    type: passive
+    aliases: [VIN]
+    function: Contact 1, nearest the chamfered corner marking
+    must_connect: true
+    evidence:
+      - source_id: EX-CN-0002
+        table: Table 2-1
+        snippet: '1     P1      passive   Contact 1, nearest the chamfered corner marking.'
+
+  - number: '2'
+    name: P2
+    type: passive
+    aliases: [GND]
+    function: Contact 2
+    must_connect: true
+    evidence:
+      - source_id: EX-CN-0002
+        table: Table 2-1
+        snippet: '2     P2      passive   Contact 2.'

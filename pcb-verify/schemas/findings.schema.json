@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/findings.schema.json",
+  "title": "Check findings",
+  "description": "Output of deterministic checks. Claude interprets these; Claude never authors them. Each finding names the exact objects involved so a reviewer can go straight to the schematic rather than re-deriving the problem from prose.",
+  "type": "object",
+  "required": ["schema_version", "design", "findings"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "design": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "checks_run": {
+      "type": "array",
+      "items": { "$ref": "common.defs.json#/$defs/check_id" }
+    },
+    "checks_errored": {
+      "description": "Checks that crashed or could not run. Distinct from checks that ran and found nothing -- a crashed check must never read as a clean result.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "error"],
+        "additionalProperties": false,
+        "properties": {
+          "check_id": { "$ref": "common.defs.json#/$defs/check_id" },
+          "error": { "type": "string" }
+        }
+      }
+    },
+
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["finding_id", "check_id", "code", "severity", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "finding_id": {
+            "description": "Stable within a run: <CHECK>-<NNN>.",
+            "type": "string",
+            "minLength": 3
+          },
+          "check_id": { "$ref": "common.defs.json#/$defs/check_id" },
+          "code": {
+            "description": "Machine-stable failure mode within the check. Corpus expectations match on this, so wording changes never silently break tests.",
+            "$ref": "common.defs.json#/$defs/finding_code"
+          },
+          "severity": { "$ref": "common.defs.json#/$defs/severity" },
+          "message": { "type": "string", "minLength": 1 },
+
+          "gate_id": { "$ref": "common.defs.json#/$defs/identifier" },
+
+          "component": {
+            "description": "Reference designator, when the finding is about a placed component.",
+            "$ref": "common.defs.json#/$defs/refdes"
+          },
+          "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+          "package": { "$ref": "common.defs.json#/$defs/package_name" },
+          "pin": { "type": "string" },
+          "net": { "type": "string" },
+          "rail": { "type": "string" },
+          "signal": { "type": "string" },
+
+          "expected": { "description": "What the authoritative source requires." },
+          "actual": { "description": "What the design does." },
+
+          "location": {
+            "description": "Where to look: file plus sheet path where known.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string" },
+              "sheet": { "type": "string" },
+              "detail": { "type": "string" }
+            }
+          },
+
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          },
+          "remediation": { "type": "string" },
+          "waiver_id": { "$ref": "common.defs.json#/$defs/identifier" }
+        }
+      }
+    }
+  }
+}

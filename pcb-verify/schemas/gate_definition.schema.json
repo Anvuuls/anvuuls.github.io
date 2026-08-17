@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/gate_definition.schema.json",
+  "title": "Canonical gate definitions",
+  "description": "gates/gates.yaml is the SINGLE source of truth for the engineering process. The review checklist, the workflow ordering, agent task lists and the signoff tables are all generated from this file. Nothing else may maintain a parallel list of stages -- four overlapping taxonomies is how a process drifts out of sync with itself.",
+  "type": "object",
+  "required": ["version", "gates"],
+  "additionalProperties": false,
+
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["gate_id", "name", "description", "mandatory", "basis_requirements"],
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": { "$ref": "common.defs.json#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+
+          "mandatory": {
+            "description": "A mandatory gate that is FAIL or BLOCKED prevents release.",
+            "type": "boolean"
+          },
+
+          "dependencies": {
+            "description": "Gate IDs whose artifacts this gate consumes. The runner topologically orders these and invalidates downstream gates when an upstream artifact changes. Hardware design is iterative, so this graph -- not a fixed 1..64 sequence -- defines ordering.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/identifier" },
+            "default": []
+          },
+
+          "inputs": {
+            "description": "Logical artifact names this gate reads. Agents communicate only through files, so these are real paths resolved by the runner.",
+            "type": "array",
+            "items": { "type": "string" },
+            "default": []
+          },
+
+          "checks": {
+            "description": "Deterministic check IDs contributing to this gate. A gate with checks cannot pass with MACHINE_CHECKED basis unless all of them ran.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/check_id" },
+            "default": []
+          },
+
+          "required_artifacts": {
+            "description": "Artifacts that must exist for the gate to be evaluable at all. Missing artifacts yield BLOCKED, never PASS.",
+            "type": "array",
+            "items": { "type": "string" },
+            "default": []
+          },
+
+          "output_artifacts": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": []
+          },
+
+          "owner_agent": {
+            "description": "Which review agent is responsible. Advisory only: an agent can never satisfy a machine-checkable gate by assertion.",
+            "type": "string"
+          },
+
+          "basis_requirements": {
+            "description": "Basis values that MUST be present for this gate to pass. Enforced by pcbv.gatemodel, which is what makes 'PASS' mean something specific per gate.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "common.defs.json#/$defs/basis" }
+          },
+
+          "permitted_deferrals": {
+            "description": "Deferral basis values legitimately allowed here, e.g. RF may defer S11 to lab test. A deferral not listed is a schema error, which stops 'deferred' being used as a universal escape hatch.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/basis" },
+            "default": []
+          },
+
+          "human_approval_required": {
+            "description": "True means a stored human approval record is mandatory. The system never releases safety-relevant hardware on LLM review alone.",
+            "type": "boolean",
+            "default": false
+          },
+
+          "severity": {
+            "description": "Weight of this gate's failures in reporting.",
+            "$ref": "common.defs.json#/$defs/severity"
+          },
+
+          "applicability_rules": {
+            "description": "Conditions on project.yaml that make this gate applicable. NOT_APPLICABLE is DERIVED from these, never asserted by an agent. A gate with no rules is always applicable.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["pointer"],
+              "additionalProperties": false,
+              "properties": {
+                "pointer": {
+                  "description": "JSON Pointer into project.yaml, e.g. '/rf' or '/battery/chemistry'.",
+                  "type": "string",
+                  "pattern": "^/"
+                },
+                "condition": {
+                  "description": "present: key exists and is not null/false/empty. truthy: any nested value is true. equals/in: compare against 'value'.",
+                  "type": "string",
+                  "enum": ["present", "absent", "truthy", "equals", "in"],
+                  "default": "present"
+                },
+                "value": {},
+                "note": { "type": "string" }
+              }
+            },
+            "default": []
+          },
+
+          "approval_rules": {
+            "description": "Extra conditions that turn on human approval, e.g. lithium chemistry forcing BATTERY approval.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["pointer"],
+              "additionalProperties": false,
+              "properties": {
+                "pointer": { "type": "string", "pattern": "^/" },
+                "condition": {
+                  "type": "string",
+                  "enum": ["present", "absent", "truthy", "equals", "in"],
+                  "default": "present"
+                },
+                "value": {},
+                "note": { "type": "string" }
+              }
+            },
+            "default": []
+          },
+
+          "phase": {
+            "description": "Implementation phase this gate becomes active in. Lets the repo declare honestly that a gate is not yet implemented rather than reporting a vacuous PASS.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+
+          "implemented": {
+            "description": "False means no check backs this gate yet. Unimplemented mandatory gates evaluate to BLOCKED, so an incomplete pipeline can never produce a release.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    }
+  }
+}

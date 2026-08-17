@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/pin_matrix.schema.json",
+  "title": "MCU pin assignment matrix",
+  "description": "engineering/pin_matrix.yaml. One row per assigned controller pin. Enables deterministic detection of duplicate assignments, boot/strap conflicts, programming-pin collisions and logic-level mismatches -- all of which are mechanical comparisons, not judgement calls.",
+  "type": "object",
+  "required": ["schema_version", "controller", "assignments"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "controller": {
+      "type": "object",
+      "required": ["refdes", "mpn", "package"],
+      "additionalProperties": false,
+      "properties": {
+        "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+        "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+        "package": { "$ref": "common.defs.json#/$defs/package_name" },
+        "io_voltage": { "$ref": "common.defs.json#/$defs/quantity" }
+      }
+    },
+
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pin", "pin_name", "usage"],
+        "additionalProperties": false,
+        "properties": {
+          "pin": {
+            "description": "Package pin number, matching the package-qualified pin table.",
+            "type": "string"
+          },
+          "pin_name": { "type": "string" },
+
+          "usage": {
+            "type": "string",
+            "enum": [
+              "signal", "power", "ground", "unused_floating", "unused_tied",
+              "unused_test_point", "no_connect", "reserved"
+            ]
+          },
+
+          "signal": { "type": "string" },
+          "net": { "type": "string" },
+          "connected_to": {
+            "description": "Peer device and pin, e.g. 'U3.7'.",
+            "type": "string"
+          },
+
+          "direction": {
+            "type": "string",
+            "enum": ["input", "output", "bidirectional", "analog_in", "analog_out", "power", "rf", "none"]
+          },
+
+          "peripheral": {
+            "description": "Peripheral instance used, e.g. 'SPI2', 'I2C0', 'ADC1_CH3'. Needed to detect unsupported routing.",
+            "type": "string"
+          },
+
+          "logic_voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+
+          "boot_strap": {
+            "description": "Mirrors the pin table. A strap carrying a normal signal is a conflict unless the strap requirement is provably still met at reset.",
+            "type": "boolean",
+            "default": false
+          },
+          "strap_required_level": {
+            "type": "string",
+            "enum": ["HIGH", "LOW", "EITHER"]
+          },
+
+          "programming_function": {
+            "description": "Set when the pin is part of the debug or programming path; reuse for another signal must not block programming.",
+            "type": "string",
+            "enum": ["swdio", "swclk", "tms", "tck", "tdi", "tdo", "uart_tx", "uart_rx", "reset", "boot_select", "none"]
+          },
+
+          "internal_pull": {
+            "type": "string",
+            "enum": ["up", "down", "none", "unknown"]
+          },
+          "external_pull": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "direction": { "type": "string", "enum": ["up", "down", "none"] },
+              "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "value": { "$ref": "common.defs.json#/$defs/quantity" },
+              "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+              "purpose": {
+                "description": "Why this pull exists. A pull with no stated purpose is a finding.",
+                "type": "string"
+              }
+            }
+          },
+
+          "reset_state": {
+            "type": "string",
+            "enum": ["input_floating", "input_pull_up", "input_pull_down", "output_low", "output_high", "high_z", "unknown"]
+          },
+
+          "requires_interrupt": { "type": "boolean", "default": false },
+          "requires_adc": { "type": "boolean", "default": false },
+          "current_requirement": { "$ref": "common.defs.json#/$defs/quantity" },
+
+          "test_point": { "$ref": "common.defs.json#/$defs/refdes" },
+
+          "status": {
+            "type": "string",
+            "enum": ["OK", "CONFLICT", "UNVERIFIED", "BLOCKED"]
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          }
+        }
+      }
+    }
+  }
+}

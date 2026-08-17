@@ -1,0 +1,30 @@
+(footprint "CONN-1x02-P2.54"
+	(version 20240108)
+	(generator "pcbv_corpus")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(descr "2-position 2.54 mm header, corpus fixture land pattern")
+	(attr through_hole)
+	(fp_text reference "REF**"
+		(at 1.27 -2.4 0)
+		(layer "F.SilkS")
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(fp_text value "CONN-1x02-P2.54"
+		(at 1.27 4.9 0)
+		(layer "F.Fab")
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(pad "1" thru_hole rect
+		(at 0 0)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+	)
+	(pad "2" thru_hole oval
+		(at 2.54 0)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Cu" "*.Mask")
+	)
+)

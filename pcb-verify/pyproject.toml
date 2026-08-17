@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcbv"
+version = "0.1.0"
+description = "Verification-first PCB schematic review pipeline for human-drawn KiCad designs"
+requires-python = ">=3.10"
+dependencies = [
+    "PyYAML>=6.0",
+    "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+pcbv = "pcbv.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+markers = [
+    "requires_kicad: test needs the kicad-cli binary on PATH",
+]

@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/startup_states.schema.json",
+  "title": "Startup-state matrix",
+  "description": "engineering/startup_states.yaml. The highest-value artifact in this pipeline: most first-bring-up failures are floating enables, straps fought by peripherals, and back-powering, all of which are visible here and nowhere else. Hardware must default to a safe state before firmware runs, so FLOATING on a pin that enables current is a failure, not a note.",
+  "type": "object",
+  "required": ["schema_version", "signals"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "phases": {
+      "description": "Lifecycle phases evaluated. Fixed set by default; declared here so reports and checks agree on ordering.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "POWER_OFF", "POWER_APPLIED", "RESET", "BOOT",
+          "FIRMWARE_INIT", "NORMAL", "SLEEP", "FAULT"
+        ]
+      },
+      "default": [
+        "POWER_OFF", "POWER_APPLIED", "RESET", "BOOT",
+        "FIRMWARE_INIT", "NORMAL", "SLEEP", "FAULT"
+      ]
+    },
+
+    "signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["signal", "criticality", "states"],
+        "additionalProperties": false,
+        "properties": {
+          "signal": { "type": "string", "minLength": 1 },
+          "net": { "type": "string" },
+          "description": { "type": "string" },
+
+          "criticality": {
+            "description": "What an unsafe state on this signal costs. 'enables_current' means an unintended assertion switches real power -- motors, heaters, RF PAs -- so an unsafe state blocks release rather than warning.",
+            "type": "string",
+            "enum": [
+              "enables_current", "enables_rf_transmit", "selects_boot_mode",
+              "controls_reset", "bus_control", "indication_only", "informational"
+            ]
+          },
+
+          "driver": {
+            "description": "What drives this net, and whether that driver is powered in each phase.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "pin": { "type": "string" },
+              "kind": {
+                "type": "string",
+                "enum": ["mcu_gpio", "push_pull", "open_drain", "external_ic", "connector", "passive_only", "none"]
+              },
+              "rail": { "$ref": "common.defs.json#/$defs/identifier" }
+            }
+          },
+
+          "pull": {
+            "description": "External pull holding the net when nothing drives it. This is what turns FLOATING into a defined level, and its absence is the defect the matrix exists to expose.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "direction": { "type": "string", "enum": ["up", "down", "none"] },
+              "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "value": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "rail": {
+                "description": "Which rail the pull references. A pull to a rail that is absent in an early phase does not hold the net in that phase -- a common and easily missed error.",
+                "$ref": "common.defs.json#/$defs/identifier"
+              },
+              "internal": { "type": "boolean", "default": false }
+            }
+          },
+
+          "receiver_devices": {
+            "description": "Devices that consume this signal, with the rail each is powered from. Used by the back-power check: a driven signal into an unpowered device can forward-bias its ESD clamp and sneak-power the part.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["refdes"],
+              "additionalProperties": false,
+              "properties": {
+                "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+                "pin": { "type": "string" },
+                "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+                "tolerant_when_unpowered": {
+                  "description": "Set true only with a datasheet citation permitting voltage on the pin while the supply is absent. Defaults false because most parts forbid it.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": { "$ref": "common.defs.json#/$defs/citation" }
+                }
+              }
+            }
+          },
+
+          "required_state": {
+            "description": "The safe level per phase, from the datasheet or the system's safety argument. The check compares 'states' against this instead of guessing what safe means.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["HIGH", "LOW", "EITHER", "NOT_FLOATING", "CONTROLLED"]
+            }
+          },
+
+          "states": {
+            "description": "Actual level in each phase, as designed. UNKNOWN is a real answer and blocks; it is never treated as acceptable.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "object",
+              "required": ["state"],
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "HIGH", "LOW", "FLOATING", "HIGH_Z", "DRIVEN",
+                    "CONTROLLED", "UNPOWERED", "UNKNOWN"
+                  ]
+                },
+                "held_by": {
+                  "description": "What establishes this level: 'R12 pulldown to 3V3', 'MCU push-pull', 'internal pull-up'.",
+                  "type": "string"
+                },
+                "safe": {
+                  "description": "Computed by the startup-state check, not asserted by hand.",
+                  "type": ["boolean", "null"]
+                },
+                "note": { "type": "string" },
+                "evidence": {
+                  "type": "array",
+                  "items": { "$ref": "common.defs.json#/$defs/citation" }
+                }
+              }
+            }
+          },
+
+          "boot_strap_of": {
+            "description": "Refdes whose boot/configuration mode this signal selects, when applicable.",
+            "$ref": "common.defs.json#/$defs/refdes"
+          },
+
+          "computed": {
+            "description": "Build output from the startup-state check.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "overall_status": {
+                "type": "string",
+                "enum": ["PASS", "FAIL", "BLOCKED"]
+              },
+              "unsafe_phases": { "type": "array", "items": { "type": "string" } },
+              "boot_conflict": { "type": ["boolean", "null"] },
+              "backpower_risk": { "type": ["boolean", "null"] },
+              "reasons": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/waiver.schema.json",
+  "title": "Structured waivers",
+  "description": "waivers/*.yaml. A waiver is not an ignored warning: it is a recorded engineering decision with a reason, evidence, an approver and a review condition. Nothing in this pipeline is suppressed silently, ERC warnings included.",
+  "type": "object",
+  "required": ["schema_version", "waivers"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["waiver_id", "target", "reason", "scope", "approver", "date"],
+        "additionalProperties": false,
+        "properties": {
+          "waiver_id": { "$ref": "common.defs.json#/$defs/identifier" },
+
+          "target": {
+            "description": "What is being waived. Matched on stable fields so a waiver cannot accidentally widen to unrelated findings.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "check_id": { "$ref": "common.defs.json#/$defs/check_id" },
+              "code": { "$ref": "common.defs.json#/$defs/finding_code" },
+              "erc_code": {
+                "description": "KiCad ERC violation type, for ERC waivers.",
+                "type": "string"
+              },
+              "component": { "$ref": "common.defs.json#/$defs/refdes" },
+              "pin": { "type": "string" },
+              "net": { "type": "string" }
+            },
+            "anyOf": [
+              { "required": ["check_id"] },
+              { "required": ["erc_code"] }
+            ]
+          },
+
+          "reason": {
+            "description": "The engineering justification. 'Not important' is not a reason.",
+            "type": "string",
+            "minLength": 16
+          },
+
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          },
+
+          "supporting_refs": {
+            "description": "Non-document evidence, e.g. 'schematic/J4' for a rail fed through a connector.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "scope": {
+            "description": "How far this waiver reaches. Narrow scope is the default; a project-wide waiver needs a strong reason.",
+            "type": "string",
+            "enum": ["single_finding", "component", "net", "check_in_design", "project_wide"]
+          },
+
+          "safety_related": {
+            "description": "True forces human approval regardless of the gate's own approval setting.",
+            "type": "boolean",
+            "default": false
+          },
+
+          "approver": {
+            "description": "Human who accepted the risk. Must be on the project reviewer roster. Never written by an agent.",
+            "$ref": "common.defs.json#/$defs/person"
+          },
+
+          "date": { "$ref": "common.defs.json#/$defs/date" },
+
+          "expires": {
+            "description": "Waivers for time-decaying facts (supplier stock, provisional datasheets) must expire.",
+            "$ref": "common.defs.json#/$defs/date"
+          },
+
+          "review_condition": {
+            "description": "What would invalidate this waiver, e.g. 'revisit if the 3V3 load exceeds 300 mA'.",
+            "type": "string"
+          },
+
+          "revision": { "type": "string" }
+        },
+
+        "allOf": [
+          {
+            "if": { "properties": { "safety_related": { "const": true } }, "required": ["safety_related"] },
+            "then": {
+              "description": "Safety waivers must name what would trigger re-review; an open-ended safety waiver is not acceptable.",
+              "required": ["review_condition"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

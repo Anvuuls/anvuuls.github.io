@@ -1,0 +1,77 @@
+design: wrong_symbol_pin
+kind: known_bad
+derived_from: minimal_ldo
+
+description: >
+  The LDO symbol carries the correct pin NUMBERS but the names on pins 4 and 5 are
+  swapped: pin 4 is labelled VOUT and pin 5 is labelled NC, where the SOT-23-5 pin table
+  says pin 4 is the unbonded no-connect and pin 5 is the regulated output.
+
+defect_injected: >
+  Pin 4 and pin 5 names swapped on symbol EXAMPLE-LDO-3V3, in both the schematic's cached
+  copy and the case-local library, as would happen with a bad third-party symbol.
+
+# Why this case matters more than it looks: because the pin NUMBERS are still 1..5, the
+# symbol drops onto the SOT-23-5 footprint without complaint and the schematic reads
+# correctly to a human skimming it. ERC cannot see the defect -- both pins are connected and
+# neither creates a driver conflict. The board is manufacturable, passes every automated
+# check KiCad offers, and does not work: the regulated output lands on the pad the
+# datasheet says is not internally bonded, and the pin that is the real output is left
+# marked NC. This is precisely the failure class that killed the "ERC passed, ship it"
+# assumption, and it is caught here by comparison against the manufacturer pin table.
+
+exhaustive: true
+
+expect:
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: U1
+    pin: '4'
+    severity: CRITICAL
+    min_count: 1
+    max_count: 1
+    why: >
+      Datasheet pin 4 is NC; the symbol calls it VOUT. A correct checker must name the pin
+      number, both names, and the package the table came from.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: U1
+    pin: '5'
+    severity: CRITICAL
+    min_count: 1
+    max_count: 1
+    why: Datasheet pin 5 is VOUT; the symbol calls it NC.
+
+forbid:
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_TYPE_MISMATCH
+    component: U1
+    why: >
+      Only the names were swapped -- pin 4 is still declared no_connect and pin 5 still
+      power_out -- so the electrical types genuinely do agree with the pin table. Reporting
+      a type mismatch here would be a false positive, and asserting its absence keeps the
+      two comparisons independent.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_STALE_IN_SCHEMATIC
+    component: U1
+    why: >
+      The case-local library carries the same defect as the schematic's cached copy, which
+      is the realistic bad-symbol scenario. Drift is a different defect and belongs to a
+      different case.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_FOOTPRINT_PAD_MISMATCH
+    component: U1
+    why: >
+      Pin numbers are untouched, so symbol pins and footprint pads still correspond exactly.
+      This is the reason the defect is invisible to every geometric check.
+
+not_yet_detected:
+  - description: >
+      Nothing yet notices that the net carrying the regulated 3V3 output is connected to a
+      pin the datasheet declares unbonded, which is the actual electrical consequence.
+      Catching that needs connectivity analysis, not just pin-table comparison.
+    planned_check: CHK-STARTUP-STATE
+    planned_phase: 1

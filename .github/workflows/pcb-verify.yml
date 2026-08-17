@@ -1,0 +1,113 @@
+name: PCB Verify
+
+# CI is the authority on whether a schematic is released. Claude and any other agent may
+# edit source files; neither gets to decide whether the result passes. The release verdict
+# is recomputed here on a clean checkout from schemas, tests, deterministic checks and
+# stored human approvals.
+#
+# Path-filtered on purpose: this repository's Update Daily Code workflow commits every ten
+# minutes, and those commits touch nothing here.
+
+on:
+  push:
+    paths:
+      - 'pcb-verify/**'
+      - '.github/workflows/pcb-verify.yml'
+  pull_request:
+    paths:
+      - 'pcb-verify/**'
+      - '.github/workflows/pcb-verify.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: pcb-verify
+
+jobs:
+  verify:
+    name: Schemas, corpus and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Validate every schema and artifact
+        run: pcbv validate
+
+      - name: Run the known-good / known-bad corpus
+        run: pcbv corpus
+
+      - name: Unit and corpus tests
+        run: python -m pytest -q
+
+      - name: Show the canonical gate model
+        run: pcbv gates
+
+      # The pipeline must not be able to claim a release while gates are unimplemented.
+      # `pcbv release` exits non-zero for NOT_RELEASED, so success here would mean the
+      # derived-status logic had broken open.
+      - name: Assert the corpus design is NOT_RELEASED
+        run: |
+          if pcbv release tests/corpus/known_good/minimal_ldo > /dev/null; then
+            echo "::error::release verdict came back SCHEMATIC_RELEASED while gates are unimplemented"
+            exit 1
+          fi
+          echo "release verdict is correctly NOT_RELEASED"
+
+  kicad-fixtures:
+    name: KiCad accepts the corpus fixtures
+    runs-on: ubuntu-latest
+    container:
+      image: kicad/kicad:8.0
+      options: --user root
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show kicad-cli version
+        run: kicad-cli version
+
+      # The corpus .kicad_sch / .kicad_sym / .kicad_mod files are hand-written, and the
+      # development container had no KiCad to open them with. This job is the check that
+      # they are real KiCad files and not merely files our own parser happens to accept --
+      # without it, the whole corpus could be testing a private dialect of s-expressions.
+      - name: Open every fixture schematic with kicad-cli
+        run: |
+          set -euo pipefail
+          status=0
+          for sch in $(find tests/corpus -name '*.kicad_sch' | sort); do
+            echo "--- $sch"
+            if ! kicad-cli sch export netlist --output /tmp/out.net "$sch"; then
+              echo "::error file=$sch::kicad-cli could not read this schematic"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Run KiCad ERC on every fixture schematic
+        run: |
+          set -euo pipefail
+          for sch in $(find tests/corpus -name '*.kicad_sch' | sort); do
+            echo "--- ERC $sch"
+            # ERC findings are expected on these deliberately minimal fixtures; this step
+            # proves ERC runs and parses, and records the report as an artifact. It is not
+            # yet a gate -- CHK-ERC lands in Phase 1.
+            kicad-cli sch erc --output "/tmp/$(basename "$sch").erc.json" \
+              --format json --exit-code-violations "$sch" || true
+          done
+
+      - name: Upload ERC reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: erc-reports
+          path: /tmp/*.erc.json
+          if-no-files-found: warn

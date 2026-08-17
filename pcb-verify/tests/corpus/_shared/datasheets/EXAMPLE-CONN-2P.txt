@@ -1,0 +1,29 @@
+EXAMPLE CONNECTOR CORPORATION
+EXAMPLE-CONN-2P  --  2-position 2.54 mm pitch vertical header
+Document EX-CN-0002  Revision 1.0
+
+This is a FICTIONAL part used by the pcb-verify test corpus.
+
+--------------------------------------------------------------------------------
+Section 1  Ratings
+--------------------------------------------------------------------------------
+Current rating per contact ........... 3 A
+Voltage rating ....................... 250 V AC
+Mating cycles ........................ 30 minimum
+Operating temperature ................ -40 C to 105 C
+
+--------------------------------------------------------------------------------
+Section 2  Pin Assignment
+--------------------------------------------------------------------------------
+Table 2-1  Contact numbering
+
+Contact 1 is marked on the moulding by a triangular indicator and is the contact
+nearest the chamfered corner of the housing.
+
+Pin   Name    Type      Description
+1     P1      passive   Contact 1, nearest the chamfered corner marking.
+2     P2      passive   Contact 2.
+
+The header is unpolarised and unkeyed. Reverse insertion of a mating cable is
+mechanically possible, so the board design must tolerate reversed connection or
+provide keying externally.

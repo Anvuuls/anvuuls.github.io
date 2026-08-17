@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/power_budget.schema.json",
+  "title": "Power budget",
+  "description": "engineering/power_budget.yaml. Loads are declared with evidence; totals and margins are computed by pcbv.checks.power_budget. Worst case is the design target -- typical current is recorded for context only and never sizes a regulator.",
+  "type": "object",
+  "required": ["schema_version", "rails"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "margins": {
+      "description": "Overrides project.yaml margins. 25% continuous is a reasonable default, not a universal law.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "continuous": { "$ref": "common.defs.json#/$defs/quantity" },
+        "peak": { "$ref": "common.defs.json#/$defs/quantity" }
+      }
+    },
+
+    "simultaneity_groups": {
+      "description": "Named sets of modes that can be active at once. Without this, a budget silently assumes either that everything runs together (over-conservative) or that nothing does (dangerous).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["group_id", "members"],
+        "additionalProperties": false,
+        "properties": {
+          "group_id": { "$ref": "common.defs.json#/$defs/identifier" },
+          "description": { "type": "string" },
+          "members": {
+            "description": "Load entry IDs active together in this scenario.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "common.defs.json#/$defs/identifier" }
+          },
+          "mutually_exclusive": {
+            "description": "True means only the largest member counts rather than the sum.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+
+    "rails": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["rail", "voltage", "supply", "loads"],
+        "additionalProperties": false,
+        "properties": {
+          "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+          "voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+          "parent_rail": { "$ref": "common.defs.json#/$defs/identifier" },
+
+          "supply": {
+            "description": "The regulator or source feeding this rail.",
+            "type": "object",
+            "required": ["refdes", "kind", "rated_current"],
+            "additionalProperties": false,
+            "properties": {
+              "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+              "kind": {
+                "type": "string",
+                "enum": ["ldo", "buck", "boost", "buck_boost", "charger", "load_switch", "direct", "battery"]
+              },
+              "rated_current": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "current_limit": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "input_voltage_min": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "input_voltage_max": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "dropout": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "quiescent_current": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "efficiency": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "thermal_resistance_ja": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "derating_reason": {
+                "description": "Why rated current is derated here, e.g. thermal limit at 85 C ambient.",
+                "type": "string"
+              },
+              "derated_current": { "$ref": "common.defs.json#/$defs/verified_value" }
+            }
+          },
+
+          "loads": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["load_id", "device", "mode", "current_max"],
+              "additionalProperties": false,
+              "properties": {
+                "load_id": { "$ref": "common.defs.json#/$defs/identifier" },
+                "device": { "type": "string", "minLength": 1 },
+                "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+                "mode": {
+                  "description": "Operating mode this entry describes, e.g. 'wifi_tx', 'idle', 'sleep'.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "current_typical": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "current_max": {
+                  "description": "Worst-case continuous current. This is what sizes the supply.",
+                  "$ref": "common.defs.json#/$defs/verified_value"
+                },
+                "current_peak": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "peak_duration": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "peak_duty_cycle": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "inrush": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "counts_in_groups": {
+                  "type": "array",
+                  "items": { "$ref": "common.defs.json#/$defs/identifier" }
+                },
+                "note": { "type": "string" }
+              }
+            }
+          },
+
+          "computed": {
+            "description": "Build output written by the power budget check. Hand-editing this is a defect.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "total_typical": { "$ref": "common.defs.json#/$defs/quantity" },
+              "total_maximum": { "$ref": "common.defs.json#/$defs/quantity" },
+              "total_peak": { "$ref": "common.defs.json#/$defs/quantity" },
+              "worst_group": { "$ref": "common.defs.json#/$defs/identifier" },
+              "derated_current": { "$ref": "common.defs.json#/$defs/quantity" },
+              "continuous_margin": { "$ref": "common.defs.json#/$defs/quantity" },
+              "peak_margin": { "$ref": "common.defs.json#/$defs/quantity" },
+              "unknown_loads": {
+                "description": "Load IDs whose current is still UNKNOWN. Any entry blocks the POWER gate rather than being treated as zero.",
+                "type": "array",
+                "items": { "$ref": "common.defs.json#/$defs/identifier" }
+              },
+              "status": {
+                "type": "string",
+                "enum": ["OK", "MARGINAL", "EXCEEDED", "BLOCKED_UNKNOWN"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

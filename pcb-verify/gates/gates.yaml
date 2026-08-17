@@ -1,0 +1,464 @@
+# Canonical gate definitions -- the single source of truth for this engineering process.
+#
+# The review checklist, workflow ordering, agent task lists and signoff tables are all
+# GENERATED from this file (`pcbv gates --checklist`). Do not maintain a second list of
+# stages anywhere: four overlapping taxonomies is how a process silently drifts out of
+# sync with itself.
+#
+# `implemented: false` is the honest default. An unimplemented mandatory gate evaluates to
+# BLOCKED, never PASS, so a half-built pipeline cannot produce a release. As checks land,
+# flip the flag and add the corpus cases in the same commit.
+#
+# Ordering comes from `dependencies`, not from position in this file. Hardware design is
+# iterative -- part selection, power, pin assignment and physical feasibility all feed back
+# on each other -- so the runner topologically sorts this graph rather than marching 1..64.
+
+version: 1
+
+gates:
+  # ---------------------------------------------------------------- inputs
+  - gate_id: REQ
+    name: Requirements
+    description: >
+      Structured project requirements exist, validate against schema, and are complete
+      enough that downstream gates are not guessing. Dangerously incomplete requirements
+      block the design rather than being filled in with assumptions.
+    mandatory: true
+    dependencies: []
+    inputs: [project.yaml]
+    required_artifacts: [project.yaml]
+    checks: [CHK-PROJECT-SCHEMA]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: requirements
+    severity: CRITICAL
+    phase: 0
+    implemented: true
+
+  - gate_id: ARCH
+    name: Architecture
+    description: >
+      Subsystems, power domains, interface topology and dependency graph are documented,
+      including which functions operate simultaneously.
+    mandatory: true
+    dependencies: [REQ]
+    inputs: [engineering/architecture.yaml]
+    required_artifacts: [engineering/architecture.yaml]
+    basis_requirements: [HUMAN_REVIEWED]
+    owner_agent: architecture
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: PART
+    name: Part selection
+    description: >
+      Every component resolves to an exact MPN with a package-qualified library record.
+      No part is described by family alone.
+    mandatory: true
+    dependencies: [REQ]
+    inputs: [library/parts, schematic]
+    checks: [CHK-PART-RECORDS]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: manufacturing
+    severity: CRITICAL
+    phase: 2
+    implemented: false
+
+  - gate_id: DATASHEET
+    name: Datasheet requirements
+    description: >
+      Authoritative documents are cached and hashed, requirements are extracted into
+      machine-readable form, and every citation snippet has been re-verified against the
+      extracted text. An unverifiable citation fails; it does not degrade to a lower
+      evidence level.
+    mandatory: true
+    dependencies: [PART]
+    inputs: [library/parts]
+    checks: [CHK-CITATIONS, CHK-EVIDENCE-POLICY]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: datasheet
+    severity: CRITICAL
+    phase: 2
+    implemented: false
+
+  # ---------------------------------------------------------------- library integrity
+  - gate_id: SYMBOL
+    name: Symbol verification
+    description: >
+      Every schematic symbol agrees with the manufacturer pin table for the specific
+      package used: pin numbers, names and electrical types. Third-party symbols are
+      never trusted by default.
+    mandatory: true
+    dependencies: [PART]
+    inputs: [library/parts, schematic]
+    checks: [CHK-PIN-MAP]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: manufacturing
+    severity: CRITICAL
+    phase: 1
+    implemented: true
+
+  - gate_id: FOOTPRINT
+    name: Footprint verification
+    description: >
+      Assigned footprints exist, their pad numbers match the symbol's pin numbers, and the
+      manufacturer's recommended land pattern is cited. Pad geometry review is a separate
+      human step.
+    mandatory: true
+    dependencies: [PART, SYMBOL]
+    inputs: [library/parts, schematic]
+    checks: [CHK-PIN-MAP, CHK-LAND-PATTERN]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    owner_agent: manufacturing
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  # ---------------------------------------------------------------- electrical
+  - gate_id: POWER
+    name: Power tree and budget
+    description: >
+      Power tree is complete, worst-case budget is computed by script, every regulator has
+      margin against derated capability, and no load current is UNKNOWN.
+    mandatory: true
+    dependencies: [REQ, PART, DATASHEET]
+    inputs: [engineering/power_budget.yaml, library/parts]
+    checks: [CHK-POWER-BUDGET, CHK-REGULATOR-MARGIN]
+    required_artifacts: [engineering/power_budget.yaml]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    human_approval_required: true
+    owner_agent: power
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: BATTERY
+    name: Battery and charging safety
+    description: >
+      Chemistry-appropriate charge voltage and current, termination, precharge, protection,
+      temperature monitoring, power-path behaviour and connector polarity. First-class gate
+      because lithium cells have real fire modes; it is not a checklist bullet.
+    mandatory: true
+    dependencies: [POWER, DATASHEET]
+    inputs: [engineering/power_budget.yaml, engineering/fault_analysis.yaml]
+    checks: [CHK-BATTERY-SAFETY]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    human_approval_required: true
+    applicability_rules:
+      - pointer: /battery
+        condition: present
+        note: No battery section in project.yaml means this gate is derived NOT_APPLICABLE.
+    approval_rules:
+      - pointer: /battery/chemistry
+        condition: in
+        value: [lipo, liion, lifepo4]
+        note: Lithium chemistries always require a named human approver.
+    owner_agent: power
+    severity: CRITICAL
+    phase: 5
+    implemented: false
+
+  - gate_id: CLOCK
+    name: Clocks and crystals
+    description: >
+      Load capacitance derived as CL = (C1*C2)/(C1+C2) + Cstray rather than assuming
+      C1 = C2 = CL, plus ESR, drive level and startup margin against the manufacturer's
+      numbers.
+    mandatory: true
+    dependencies: [PART, DATASHEET]
+    inputs: [engineering/clock_analysis.yaml]
+    checks: [CHK-CRYSTAL-LOAD]
+    basis_requirements: [MACHINE_CHECKED]
+    permitted_deferrals: [DEFERRED_TO_BRINGUP]
+    owner_agent: digital
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: PINS
+    name: Pin assignment
+    description: >
+      No duplicate assignments, no boot/strap conflicts, no programming-pin collisions, and
+      every unused pin has a decided disposition.
+    mandatory: true
+    dependencies: [ARCH, DATASHEET, SYMBOL]
+    inputs: [engineering/pin_matrix.yaml]
+    checks: [CHK-PIN-CONFLICT, CHK-BOOT-STRAP, CHK-UNUSED-PINS]
+    required_artifacts: [engineering/pin_matrix.yaml]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: digital
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: INTERFACE
+    name: Interface integrity
+    description: >
+      I2C addresses unique, pull-ups counted and sized, SPI chip selects unique, logic
+      levels compatible in both directions across every rail boundary.
+    mandatory: true
+    dependencies: [PINS, DATASHEET]
+    inputs: [engineering/interface_matrix.yaml]
+    checks: [CHK-I2C-ADDRESS, CHK-I2C-PULLUP, CHK-SPI-CS, CHK-LOGIC-LEVELS]
+    required_artifacts: [engineering/interface_matrix.yaml]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: digital
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: STARTUP
+    name: Startup-state safety
+    description: >
+      Every important signal has a defined, safe level in every lifecycle phase before
+      firmware runs. A floating net on a pin that enables current is a failure, not a note.
+    mandatory: true
+    dependencies: [PINS, POWER, DATASHEET]
+    inputs: [engineering/startup_states.yaml]
+    checks: [CHK-STARTUP-STATE]
+    required_artifacts: [engineering/startup_states.yaml]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: digital
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: BACKPOWER
+    name: Back-power paths
+    description: >
+      For every interface crossing a power-domain boundary, the design is analysed with
+      each side unpowered. Driving a signal into an unpowered device can forward-bias its
+      ESD clamp and sneak-power the part.
+    mandatory: true
+    dependencies: [STARTUP, POWER]
+    inputs: [engineering/startup_states.yaml, engineering/interface_matrix.yaml]
+    checks: [CHK-BACKPOWER]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: power
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: PROTECTION
+    name: External interface protection
+    description: >
+      Every connection leaving the board has considered ESD, surge, reverse polarity,
+      overvoltage and short circuit, with protection device ratings checked against the
+      interface's speed and capacitance budget.
+    mandatory: true
+    dependencies: [ARCH, PART]
+    inputs: [engineering/protection_analysis.yaml]
+    checks: [CHK-PROTECTION-PRESENT, CHK-ESD-RATINGS]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    owner_agent: protection
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: PROGRAMMING
+    name: Programming and debug access
+    description: >
+      The board can actually be programmed and debugged: the interface exists, its pins are
+      reachable, and no attached circuitry blocks it.
+    mandatory: true
+    dependencies: [PINS]
+    inputs: [engineering/pin_matrix.yaml]
+    checks: [CHK-PROGRAMMING-ACCESS]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: digital
+    severity: CRITICAL
+    phase: 1
+    implemented: false
+
+  - gate_id: TESTABILITY
+    name: Testability and bring-up
+    description: >
+      Test points exist on ground, every rail, reset, boot and the programming interface,
+      and a first-power-on bring-up plan is generated.
+    mandatory: true
+    dependencies: [PINS, POWER]
+    inputs: [engineering/pin_matrix.yaml, reports/bringup_plan.md]
+    checks: [CHK-TEST-POINTS]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: digital
+    severity: HIGH
+    phase: 1
+    implemented: false
+
+  # ---------------------------------------------------------------- advisory-heavy domains
+  - gate_id: ANALOG
+    name: Analog signal chain
+    description: >
+      Input ranges, source impedance, reference accuracy and filtering are documented and
+      arithmetically consistent. Noise performance is not established at schematic stage.
+    mandatory: true
+    dependencies: [PART, DATASHEET, POWER]
+    inputs: [engineering/analog_analysis.yaml]
+    basis_requirements: [HUMAN_REVIEWED]
+    permitted_deferrals: [DEFERRED_TO_SIMULATION, DEFERRED_TO_LAYOUT, DEFERRED_TO_BRINGUP]
+    applicability_rules:
+      - pointer: /analog
+        condition: truthy
+    owner_agent: analog
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: RF
+    name: RF architecture
+    description: >
+      At schematic stage this establishes only that a matching network exists, tuning
+      footprints are provided, the reference design is recorded and antenna keepout is
+      documented. Antenna impedance, S11, harmonics and radiated performance are deferred
+      to measurement and must never be reported as verified here.
+    mandatory: true
+    dependencies: [PART, DATASHEET, POWER]
+    inputs: [engineering/rf_analysis.yaml]
+    basis_requirements: [HUMAN_REVIEWED]
+    permitted_deferrals: [DEFERRED_TO_SIMULATION, DEFERRED_TO_LAYOUT, DEFERRED_TO_LAB_TEST, DEFERRED_TO_BRINGUP]
+    applicability_rules:
+      - pointer: /rf
+        condition: present
+    approval_rules:
+      - pointer: /rf
+        condition: present
+    owner_agent: rf
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: THERMAL
+    name: Thermal screening
+    description: >
+      Dissipation is computed for every significant heat source. Junction temperature at
+      schematic stage is a screen only: theta-JA depends on finished copper, so results
+      carry roughly plus or minus 50 percent and are deferred to layout.
+    mandatory: true
+    dependencies: [POWER]
+    inputs: [engineering/thermal_analysis.yaml]
+    checks: [CHK-THERMAL-SCREEN]
+    basis_requirements: [MACHINE_CHECKED]
+    permitted_deferrals: [DEFERRED_TO_LAYOUT, DEFERRED_TO_LAB_TEST]
+    owner_agent: power
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: FAULT
+    name: Fault analysis
+    description: >
+      Qualitative DFMEA: for every credible fault, is a mitigation present, and if not has
+      a named human accepted the residual risk. No RPN scoring -- three guesses multiplied
+      together is false precision.
+    mandatory: true
+    dependencies: [POWER, STARTUP, PROTECTION]
+    inputs: [engineering/fault_analysis.yaml]
+    checks: [CHK-FAULT-COVERAGE]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    owner_agent: dfmea
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  # ---------------------------------------------------------------- schematic integrity
+  - gate_id: ERC
+    name: KiCad ERC
+    description: >
+      ERC runs via kicad-cli with zero unresolved errors and zero unexplained warnings.
+      A low-value gate on its own -- ERC only knows pin types and connectivity -- but cheap
+      and mandatory. Warnings are resolved or explicitly waived, never bulk-suppressed.
+    mandatory: true
+    dependencies: [SYMBOL]
+    inputs: [schematic]
+    checks: [CHK-ERC]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: schematic
+    severity: HIGH
+    phase: 1
+    implemented: false
+
+  - gate_id: NETLIST
+    name: Netlist review
+    description: >
+      Connectivity changes are reviewed as a normalized netlist diff rather than as raw
+      .kicad_sch text, which is not human-reviewable.
+    mandatory: true
+    dependencies: [SYMBOL]
+    inputs: [schematic]
+    checks: [CHK-NETLIST-DIFF]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    owner_agent: schematic
+    severity: MEDIUM
+    phase: 1
+    implemented: false
+
+  - gate_id: BOM
+    name: BOM completeness
+    description: >
+      Every populated component has reference, value, manufacturer, exact MPN, package,
+      footprint, supplier part number and DNP status.
+    mandatory: true
+    dependencies: [PART, FOOTPRINT]
+    inputs: [schematic, library/parts]
+    checks: [CHK-BOM-COMPLETE]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: manufacturing
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: MANUFACTURING
+    name: Manufacturing compatibility
+    description: >
+      Assembler capability, package availability and assembly constraints are satisfied.
+      Supplier stock is a timestamped snapshot, so this gate expires and requires a fresh
+      procurement check before fabrication.
+    mandatory: true
+    dependencies: [BOM]
+    inputs: [library/parts, reports/manufacturing_report.md]
+    checks: [CHK-SUPPLIER-FRESHNESS]
+    basis_requirements: [MACHINE_CHECKED]
+    owner_agent: manufacturing
+    severity: HIGH
+    phase: 5
+    implemented: false
+
+  - gate_id: REGULATORY
+    name: Regulatory architecture decision
+    description: >
+      Records the one regulatory decision that genuinely matters at schematic stage: a
+      pre-certified module versus a bare RF IC. Compliance itself is never marked verified
+      here.
+    mandatory: true
+    dependencies: [ARCH]
+    inputs: [engineering/design_decisions.md]
+    basis_requirements: [HUMAN_REVIEWED]
+    permitted_deferrals: [DEFERRED_TO_LAB_TEST]
+    applicability_rules:
+      - pointer: /rf
+        condition: present
+    owner_agent: rf
+    severity: MEDIUM
+    phase: 5
+    implemented: false
+
+  # ---------------------------------------------------------------- release
+  - gate_id: FINAL_REVIEW
+    name: Final independent review
+    description: >
+      Independent red-team review is complete, every finding is resolved or waived, and a
+      named human has signed the design off. The designer is never the sole approver of
+      its own work.
+    mandatory: true
+    dependencies:
+      [REQ, ARCH, PART, DATASHEET, SYMBOL, FOOTPRINT, POWER, BATTERY, CLOCK, PINS,
+       INTERFACE, STARTUP, BACKPOWER, PROTECTION, PROGRAMMING, TESTABILITY, ANALOG, RF,
+       THERMAL, FAULT, ERC, NETLIST, BOM, MANUFACTURING, REGULATORY]
+    inputs: [reports]
+    checks: [CHK-FINDINGS-RESOLVED]
+    basis_requirements: [MACHINE_CHECKED, HUMAN_REVIEWED]
+    human_approval_required: true
+    owner_agent: reviewer
+    severity: CRITICAL
+    phase: 4
+    implemented: false

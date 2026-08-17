@@ -1,0 +1,36 @@
+(footprint "SOT-89-3"
+	(version 20240108)
+	(generator "pcbv_corpus")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(descr "SOT-89-3, corpus fixture land pattern")
+	(attr smd)
+	(fp_text reference "REF**"
+		(at 0 -3.2 0)
+		(layer "F.SilkS")
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(fp_text value "SOT-89-3"
+		(at 0 3.2 0)
+		(layer "F.Fab")
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(pad "1" smd roundrect
+		(at -1.5 1.9)
+		(size 0.85 1.2)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+	)
+	(pad "2" smd roundrect
+		(at 0 1.9)
+		(size 0.85 1.2)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+	)
+	(pad "3" smd roundrect
+		(at 1.5 1.9)
+		(size 0.85 1.2)
+		(layers "F.Cu" "F.Paste" "F.Mask")
+		(roundrect_rratio 0.25)
+	)
+)

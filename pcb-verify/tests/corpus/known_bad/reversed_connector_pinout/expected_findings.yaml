@@ -1,0 +1,71 @@
+design: reversed_connector_pinout
+kind: known_bad
+derived_from: minimal_ldo
+
+description: >
+  J1's two contacts have their functions transposed: symbol pin 1 is labelled GND and pin 2
+  VIN, where contact 1 (the one by the chamfered corner marking) is the supply contact.
+
+defect_injected: >
+  Contact 1 and contact 2 names swapped on symbol EXAMPLE-CONN-2P, in the schematic cache
+  and the case-local library.
+
+# Detected here only because the connector symbol uses functional pin names (VIN/GND) that
+# the pin table declares as aliases of contacts P1/P2. An alias legitimately permits an
+# alternative NAME for a given contact NUMBER; it never permits a different number, which is
+# why swapping them is caught rather than tolerated.
+#
+# The honest limitation: had the symbol used bare numeric pin names -- common practice for
+# generic headers -- this defect would be invisible to pin-table comparison, because the
+# symbol would carry no functional claim to contradict. Catching it then requires reading
+# which net actually lands on which contact, i.e. the netlist check in Phase 1. That gap is
+# recorded below rather than glossed over: knowing what a check cannot see is part of
+# knowing what its pass means.
+
+exhaustive: true
+
+expect:
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: J1
+    pin: '1'
+    severity: CRITICAL
+    max_count: 1
+    why: >
+      Contact 1 is P1, aliased VIN. The symbol calls it GND, which matches neither the
+      manufacturer name nor its declared alias.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: J1
+    pin: '2'
+    severity: CRITICAL
+    max_count: 1
+    why: Contact 2 is P2, aliased GND. The symbol calls it VIN.
+
+forbid:
+  - check_id: CHK-PIN-MAP
+    component: U1
+    why: >
+      The defect is confined to J1. Any finding against U1 would mean the checker is
+      attributing findings to the wrong component, which would make every report untrustworthy.
+
+  - check_id: CHK-PIN-MAP
+    code: FOOTPRINT_PAD_MISSING
+    component: J1
+    why: The two-pad footprint is untouched and still matches the two-contact pin table.
+
+not_yet_detected:
+  - description: >
+      The electrical consequence -- 5 V arriving on the net the board treats as ground, with
+      the LDO and both capacitors reverse-biased -- is not detected. Only the naming
+      disagreement is. A connector symbol with numeric pin names would hide this defect from
+      pin-mapping entirely.
+    planned_check: CHK-NETLIST-DIFF
+    planned_phase: 1
+  - description: >
+      Nothing checks that an unkeyed, unpolarised external power connector has reverse-
+      polarity protection, which the connector datasheet explicitly flags as the board's
+      responsibility.
+    planned_check: CHK-PROTECTION-PRESENT
+    planned_phase: 5

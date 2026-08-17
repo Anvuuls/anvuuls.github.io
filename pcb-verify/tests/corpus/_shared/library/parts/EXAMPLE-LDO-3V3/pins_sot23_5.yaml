@@ -1,0 +1,70 @@
+# Pin table for the SOT-23-5 package ONLY.
+# Every snippet below appears verbatim in the cached datasheet text, so the citation
+# verifier can confirm it rather than taking the page reference on trust.
+
+mpn: EXAMPLE-LDO-3V3
+package: SOT-23-5
+
+source:
+  source_id: EX-DS-0042
+  section: Section 4 Pin Configuration and Functions
+  table: Table 4-1
+  transcribed_by: corpus fixture
+  transcribed_at: '2026-08-17'
+
+pins:
+  - number: '1'
+    name: VIN
+    type: power_in
+    function: Unregulated supply input
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-1
+        snippet: '1     VIN     power_in    Unregulated supply input.'
+
+  - number: '2'
+    name: GND
+    type: ground
+    function: Device ground and output voltage reference
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-1
+        snippet: '2     GND     ground      Device ground and reference for the output voltage.'
+
+  - number: '3'
+    name: EN
+    type: input
+    function: Enable input, active high
+    must_connect: true
+    internal_pull:
+      direction: none
+      enabled_by_default: false
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-1
+        snippet: 'Enable input, active high. Do not leave EN floating'
+      - source_id: EX-DS-0042
+        section: Section 5 Application Information
+        snippet: 'The EN pin has no internal pull-up or pull-down.'
+
+  - number: '4'
+    name: NC
+    type: no_connect
+    function: No internal connection
+    no_connect_reusable: false
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-1
+        snippet: 'This pad is not'
+
+  - number: '5'
+    name: VOUT
+    type: power_out
+    function: Regulated 3.3 V output
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-1
+        snippet: '5     VOUT    power_out   Regulated 3.3 V output.'

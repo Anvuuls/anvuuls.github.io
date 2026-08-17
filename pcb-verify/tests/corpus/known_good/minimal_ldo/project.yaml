@@ -1,0 +1,63 @@
+project:
+  name: minimal_ldo
+  revision: A
+  description: >
+    Smallest design that still exercises the full pin-mapping path: a two-pin input header,
+    a five-pin LDO in SOT-23-5, and its input and output capacitors. Exists so the
+    known-good baseline can prove the checker does not false-positive on a correct design.
+  schematic_root: schematic/minimal_ldo.kicad_sch
+  operating_temperature:
+    min:
+      value: -20
+      unit: degC
+    max:
+      value: 70
+      unit: degC
+
+reviewers:
+  - name: Corpus Fixture Reviewer
+    role: Fixture placeholder -- no real human has reviewed this test design
+    may_approve: []
+
+pcb:
+  layers: 2
+  thickness:
+    value: 1.6
+    unit: mm
+  manufacturer: unspecified
+  controlled_impedance: false
+  stackup_documented: false
+
+rail_naming:
+  VIN:
+    net: VIN
+    aliases: []
+  V3V3:
+    net: '+3V3'
+    aliases: []
+
+power:
+  sources:
+    - name: HEADER_IN
+      kind: header
+      voltage_min:
+        value: 4.5
+        unit: V
+      voltage_max:
+        value: 5.5
+        unit: V
+  rails:
+    - name: VIN
+      voltage:
+        value: 5.0
+        unit: V
+    - name: V3V3
+      voltage:
+        value: 3.3
+        unit: V
+      source_refdes: U1
+      parent_rail: VIN
+  margins:
+    continuous:
+      value: 25
+      unit: percent

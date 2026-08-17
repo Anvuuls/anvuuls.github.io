@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/part.schema.json",
+  "title": "Verified part record",
+  "description": "library/parts/<MPN>/part.yaml. A reusable, versioned asset shared across projects -- not project scratch. Identity is the exact MPN including suffix; a part is never described generically by family.",
+  "type": "object",
+  "required": ["mpn", "manufacturer", "packages", "sources"],
+  "additionalProperties": false,
+
+  "properties": {
+    "mpn": {
+      "description": "Exact orderable manufacturer part number, suffix included.",
+      "$ref": "common.defs.json#/$defs/mpn"
+    },
+    "manufacturer": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "mcu", "module", "regulator_ldo", "regulator_switching", "charger", "load_switch",
+        "memory", "sensor", "rf_ic", "nfc_ic", "transceiver", "display", "connector",
+        "protection", "passive_r", "passive_c", "passive_l", "crystal", "oscillator",
+        "mosfet", "diode", "led", "driver", "level_shifter", "opamp", "reference", "other"
+      ]
+    },
+
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "NRND", "OBSOLETE", "PREVIEW", "UNKNOWN"]
+        },
+        "checked_at": { "$ref": "common.defs.json#/$defs/date" },
+        "evidence": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/citation" } }
+      }
+    },
+
+    "errata_reviewed": {
+      "description": "Whether the manufacturer errata list was located and read. Absence of errata must be a positive finding, not silence.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reviewed": { "type": "boolean" },
+        "source_id": { "$ref": "common.defs.json#/$defs/identifier" },
+        "none_found": { "type": "boolean" },
+        "checked_at": { "$ref": "common.defs.json#/$defs/date" }
+      }
+    },
+
+    "sources": {
+      "description": "Every authoritative document backing this part. A datasheet alone is often insufficient.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "common.defs.json#/$defs/source_document" }
+    },
+
+    "packages": {
+      "description": "Each physical package variant. Pin numbering is per-package, so each entry binds its own symbol, footprint and pin table.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["package", "pin_count", "kicad"],
+        "additionalProperties": false,
+        "properties": {
+          "package": { "$ref": "common.defs.json#/$defs/package_name" },
+          "manufacturer_package_code": { "type": "string" },
+          "pin_count": {
+            "description": "Electrical pin count excluding unnumbered mechanical features. Exposed thermal pads that carry a pad number are counted and must appear in the pin table.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "exposed_pad": { "type": "boolean", "default": false },
+          "pin_table": {
+            "description": "Path to the package-qualified pin table (pins.yaml), relative to the part directory.",
+            "type": "string"
+          },
+          "kicad": {
+            "description": "The symbol and footprint this package must be drawn with. The pin-mapping check verifies all three agree.",
+            "type": "object",
+            "required": ["symbol", "footprint"],
+            "additionalProperties": false,
+            "properties": {
+              "symbol": {
+                "description": "KiCad lib_id, e.g. 'pcbv_example:EXAMPLE-LDO-3V3'.",
+                "type": "string",
+                "pattern": "^[^:]+:[^:]+$"
+              },
+              "footprint": {
+                "description": "KiCad footprint id, e.g. 'pcbv_example:SOT-23-5'.",
+                "type": "string",
+                "pattern": "^[^:]+:[^:]+$"
+              },
+              "symbol_library_path": { "type": "string" },
+              "footprint_library_path": { "type": "string" }
+            }
+          },
+          "land_pattern_evidence": {
+            "description": "Citation for the manufacturer's recommended land pattern. Required before a FOOTPRINT gate can pass with MACHINE_CHECKED basis.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          }
+        }
+      }
+    },
+
+    "ratings": {
+      "description": "Headline electrical envelope. Absolute maximums are recorded to be avoided, never used as design targets.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "absolute_maximum": {
+          "type": "object",
+          "additionalProperties": { "$ref": "common.defs.json#/$defs/verified_value" }
+        },
+        "recommended_operating": {
+          "type": "object",
+          "additionalProperties": { "$ref": "common.defs.json#/$defs/verified_value" }
+        }
+      }
+    },
+
+    "suppliers": {
+      "description": "Availability is a timestamped snapshot, never permanent engineering evidence. A fresh check is required before fabrication.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "supplier_part_number", "checked_at", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "supplier_part_number": { "type": "string" },
+          "checked_at": { "$ref": "common.defs.json#/$defs/date" },
+          "stock": { "type": ["integer", "null"], "minimum": 0 },
+          "status": {
+            "type": "string",
+            "enum": ["AVAILABLE_AT_CHECK_TIME", "LOW_AT_CHECK_TIME", "UNAVAILABLE_AT_CHECK_TIME", "UNKNOWN"]
+          },
+          "assembly_supported": { "type": "boolean" },
+          "basket": { "type": "string", "enum": ["basic", "extended", "unknown"] }
+        }
+      }
+    },
+
+    "alternates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["mpn", "drop_in"],
+        "additionalProperties": false,
+        "properties": {
+          "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+          "drop_in": {
+            "description": "True only if pinout, package and electricals were compared, not assumed from a similar name.",
+            "type": "boolean"
+          },
+          "differences": { "type": "array", "items": { "type": "string" } },
+          "evidence": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/citation" } }
+        }
+      }
+    }
+  }
+}

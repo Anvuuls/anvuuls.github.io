@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/approval.schema.json",
+  "title": "Human approval records",
+  "description": "approvals/*.yaml. Written by a human, committed by a human. Claude must never create an approval record, fill in a reviewer name, or edit this file -- an LLM signing its own homework defeats the entire point of the gate. CI cross-checks every reviewer against the project.yaml roster and rejects unknown names.",
+  "type": "object",
+  "required": ["schema_version", "approvals"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["approval_id", "gate", "reviewer", "date", "decision", "revision", "scope_commit"],
+        "additionalProperties": false,
+        "properties": {
+          "approval_id": { "$ref": "common.defs.json#/$defs/identifier" },
+
+          "gate": {
+            "description": "Gate this approval satisfies.",
+            "$ref": "common.defs.json#/$defs/identifier"
+          },
+
+          "reviewer": {
+            "description": "Name of the human. Must appear in project.yaml reviewers.",
+            "$ref": "common.defs.json#/$defs/person"
+          },
+
+          "date": { "$ref": "common.defs.json#/$defs/date" },
+
+          "decision": {
+            "type": "string",
+            "enum": ["APPROVED", "REJECTED", "APPROVED_WITH_CONDITIONS"]
+          },
+
+          "revision": {
+            "description": "Schematic revision reviewed.",
+            "type": "string"
+          },
+
+          "scope_commit": {
+            "description": "Commit hash of the design as reviewed. An approval does not carry forward across schematic changes: if the netlist changed, the approval is stale and the gate reverts to needing a fresh signature.",
+            "type": "string",
+            "minLength": 7
+          },
+
+          "netlist_digest": {
+            "description": "Digest of the normalized netlist at approval time, so staleness is detected by connectivity change rather than by unrelated commits.",
+            "type": "string"
+          },
+
+          "reviewed": {
+            "description": "What the human actually examined. Vague approvals are worth little in an audit.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "conditions": {
+            "description": "Required when decision is APPROVED_WITH_CONDITIONS.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "notes": { "type": "string" }
+        },
+
+        "allOf": [
+          {
+            "if": {
+              "properties": { "decision": { "const": "APPROVED_WITH_CONDITIONS" } },
+              "required": ["decision"]
+            },
+            "then": {
+              "properties": { "conditions": { "minItems": 1 } },
+              "required": ["conditions"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

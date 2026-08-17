@@ -1,0 +1,106 @@
+# Verified part record for a FICTIONAL corpus part.
+#
+# Two packages with DIFFERENT pin numbering, deliberately. This is what makes the
+# wrong_package_pin_table corpus case meaningful: if pin tables were keyed by part family
+# instead of by package, a SOT-89-3 part drawn with a SOT-23-5 symbol would validate
+# cleanly and the board would be dead.
+
+mpn: EXAMPLE-LDO-3V3
+manufacturer: Example Semiconductor
+description: 150 mA fixed 3.3 V LDO (fictional corpus part)
+category: regulator_ldo
+
+lifecycle:
+  status: ACTIVE
+  checked_at: '2026-08-17'
+
+errata_reviewed:
+  reviewed: true
+  none_found: true
+  checked_at: '2026-08-17'
+
+sources:
+  - source_id: EX-DS-0042
+    kind: datasheet
+    title: EXAMPLE-LDO-3V3 150 mA Low-Dropout Linear Regulator
+    manufacturer: Example Semiconductor
+    revision: '2.1'
+    document_number: EX-DS-0042
+    local_path: tests/corpus/_shared/datasheets/EXAMPLE-LDO-3V3.txt
+    sha256: 6eeb31b88de6b3b2337c469e6b1b78a52df42787954c47fac18637caa378241e
+    retrieved_at: '2026-08-17'
+    evidence_level: A
+    extracted_text_path: tests/corpus/_shared/datasheets/EXAMPLE-LDO-3V3.txt
+
+packages:
+  - package: SOT-23-5
+    manufacturer_package_code: DBV
+    pin_count: 5
+    exposed_pad: false
+    pin_table: pins_sot23_5.yaml
+    kicad:
+      symbol: pcbv_example:EXAMPLE-LDO-3V3
+      footprint: pcbv_example:SOT-23-5
+    land_pattern_evidence:
+      - source_id: EX-DS-0042
+        section: Section 4 Pin Configuration and Functions
+        snippet: 'Table 4-1  SOT-23-5 package (package code DBV)'
+
+  - package: SOT-89-3
+    manufacturer_package_code: KTT
+    pin_count: 3
+    exposed_pad: false
+    pin_table: pins_sot89_3.yaml
+    kicad:
+      symbol: pcbv_example:EXAMPLE-LDO-3V3-SOT89
+      footprint: pcbv_example:SOT-89-3
+    land_pattern_evidence:
+      - source_id: EX-DS-0042
+        section: Section 4 Pin Configuration and Functions
+        snippet: 'Table 4-2  SOT-89-3 package (package code KTT)'
+
+ratings:
+  absolute_maximum:
+    vin:
+      value: 6.5
+      unit: V
+      status: VERIFIED
+      evidence:
+        - source_id: EX-DS-0042
+          section: Section 1 Absolute Maximum Ratings
+          snippet: 'Input voltage VIN to GND ............. -0.3 V to 6.5 V'
+      note: Stress rating only; never an operating target.
+  recommended_operating:
+    vin_min:
+      value: 3.6
+      unit: V
+      status: VERIFIED
+      evidence:
+        - source_id: EX-DS-0042
+          section: Section 2 Recommended Operating Conditions
+          snippet: 'Input voltage range VIN .............. 3.6 V to 5.5 V'
+    vin_max:
+      value: 5.5
+      unit: V
+      status: VERIFIED
+      evidence:
+        - source_id: EX-DS-0042
+          section: Section 2 Recommended Operating Conditions
+          snippet: 'Input voltage range VIN .............. 3.6 V to 5.5 V'
+    iout_max:
+      value: 150
+      unit: mA
+      status: VERIFIED
+      evidence:
+        - source_id: EX-DS-0042
+          section: Section 2 Recommended Operating Conditions
+          snippet: 'Output current IOUT .................. 0 mA to 150 mA'
+
+suppliers:
+  - name: Example Distributor
+    supplier_part_number: EXD-000042
+    checked_at: '2026-08-17'
+    stock: 12400
+    status: AVAILABLE_AT_CHECK_TIME
+    assembly_supported: true
+    basket: basic

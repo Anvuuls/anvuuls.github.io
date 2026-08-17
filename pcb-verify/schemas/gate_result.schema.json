@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/gate_result.schema.json",
+  "title": "Gate evaluation result",
+  "description": "Build output, never hand-written. Status and basis are separate fields on purpose: a bare PASS says nothing, and 'PASS / LLM_ASSERTED' must be visibly weaker than 'PASS / MACHINE_CHECKED' in every report.",
+  "type": "object",
+  "required": ["schema_version", "project", "revision", "computed_at", "gates", "release"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "project": { "type": "string" },
+    "revision": { "type": "string" },
+    "commit": { "type": "string" },
+    "computed_at": { "type": "string" },
+
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gate_id", "status", "basis"],
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": { "$ref": "common.defs.json#/$defs/identifier" },
+          "status": { "$ref": "common.defs.json#/$defs/gate_status" },
+
+          "basis": {
+            "description": "Every basis established for this result. Empty basis with a PASS status is invalid.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/basis" }
+          },
+
+          "applicable": { "type": "boolean" },
+
+          "not_applicable_reason": {
+            "description": "Required when status is NOT_APPLICABLE. Must cite the derivation from project.yaml, not an opinion.",
+            "type": "string"
+          },
+
+          "checks_run": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/check_id" }
+          },
+          "checks_missing": {
+            "description": "Declared checks that did not run. Non-empty means MACHINE_CHECKED basis is not available.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/check_id" }
+          },
+
+          "findings": {
+            "description": "Finding IDs attributed to this gate.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "blocking_findings": { "type": "array", "items": { "type": "string" } },
+
+          "schematic_verified": {
+            "description": "What was actually established at schematic stage, as explicit claims. Keeps 'matching network present' from being read as 'RF verified'.",
+            "type": "object",
+            "additionalProperties": { "type": ["boolean", "string", "null"] }
+          },
+
+          "deferred": {
+            "description": "Named things this gate does NOT establish, each tied to the stage that will.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["item", "basis"],
+              "additionalProperties": false,
+              "properties": {
+                "item": { "type": "string", "minLength": 1 },
+                "basis": { "$ref": "common.defs.json#/$defs/basis" },
+                "note": { "type": "string" }
+              }
+            }
+          },
+
+          "approvals": {
+            "description": "Approval record IDs satisfying human_approval_required.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/identifier" }
+          },
+          "approval_missing": { "type": "boolean" },
+
+          "waivers": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/identifier" }
+          },
+
+          "unknown_critical": {
+            "description": "Critical facts still UNKNOWN. Any entry forces BLOCKED: silence is never a pass.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "notes": { "type": "array", "items": { "type": "string" } }
+        },
+
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "PASS" } }, "required": ["status"] },
+            "then": { "properties": { "basis": { "minItems": 1 } } }
+          },
+          {
+            "if": { "properties": { "status": { "const": "NOT_APPLICABLE" } }, "required": ["status"] },
+            "then": { "required": ["not_applicable_reason"] }
+          }
+        ]
+      }
+    },
+
+    "release": {
+      "description": "Computed release verdict. Terminal state names deliberately stop at the schematic; layout and fabrication are a separate pipeline.",
+      "type": "object",
+      "required": ["state", "reasons"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["SCHEMATIC_RELEASED", "NOT_RELEASED"]
+        },
+        "reasons": {
+          "description": "Why the verdict is what it is. A NOT_RELEASED with no reasons is a bug.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "project_state": {
+          "type": "string",
+          "enum": [
+            "NEW",
+            "REQUIREMENTS_READY",
+            "VERIFICATION_MODEL_READY",
+            "SCHEMATIC_UNDER_REVIEW",
+            "SCHEMATIC_VERIFIED",
+            "SCHEMATIC_RELEASED"
+          ]
+        }
+      }
+    }
+  }
+}

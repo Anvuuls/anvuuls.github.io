@@ -1,0 +1,38 @@
+# Known-good baseline: this design is correct, so nothing substantive may fire.
+#
+# The point of a known-good case is false-positive control. A checker that reports problems
+# on a correct design gets ignored by reviewers, which is worse than having no checker --
+# so this case is as important as any known_bad one.
+#
+# `exhaustive: true` means any CRITICAL/HIGH/MEDIUM/LOW finding fails the test. INFO
+# findings are excluded: they record what a check could not cover (here, the two capacitors
+# with no MPN), which is coverage information rather than a defect.
+
+design: minimal_ldo
+kind: known_good
+description: >
+  Correct two-pin header into a SOT-23-5 LDO with input and output capacitors. Symbol pin
+  numbers, names and types agree with the SOT-23-5 pin table, and the assigned footprint's
+  pads match the symbol's pins.
+
+exhaustive: true
+expect: []
+
+not_yet_detected:
+  - description: >
+      C1 and C2 are declared only as "1uF" with no MPN, dielectric or voltage rating, so
+      neither their DC-bias derated capacitance nor their voltage margin can be checked.
+      Real ceramic derating means a nominal 1 uF 0603 part can measure well under half its
+      marked value at working voltage.
+    planned_check: CHK-PART-RECORDS
+    planned_phase: 2
+  - description: >
+      Nothing yet verifies that the datasheet's mandatory 1 uF input and output capacitors
+      are actually present on the correct pins, only that the parts placed are consistent.
+    planned_check: CHK-DECOUPLING
+    planned_phase: 1
+  - description: >
+      EN is tied to VIN by a wire, which satisfies the datasheet's "do not leave EN
+      floating" requirement, but no check yet reads connectivity to confirm that.
+    planned_check: CHK-STARTUP-STATE
+    planned_phase: 1

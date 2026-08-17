@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/fault_analysis.schema.json",
+  "title": "Fault analysis (qualitative DFMEA)",
+  "description": "engineering/fault_analysis.yaml. Deliberately has NO severity/occurrence/detectability numbers and no RPN: multiplying three guesses produces a number that looks objective and is not, and that false precision is worse than an honest qualitative answer. What this artifact actually tracks is coverage -- for every credible fault, is a mitigation present, and if not, has a human accepted the risk by name?",
+  "type": "object",
+  "required": ["schema_version", "faults"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "faults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "fault_id", "subsystem", "failure_mode", "cause",
+          "local_effect", "system_effect", "mitigation_present", "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "fault_id": { "$ref": "common.defs.json#/$defs/identifier" },
+          "subsystem": { "type": "string", "minLength": 1 },
+
+          "failure_mode": {
+            "description": "e.g. USB_VBUS_SHORT_TO_GND, REVERSE_BATTERY, MOTOR_STALL, FIRMWARE_LOCKUP.",
+            "type": "string",
+            "minLength": 1
+          },
+          "cause": { "type": "string", "minLength": 1 },
+
+          "local_effect": { "type": "string", "minLength": 1 },
+          "system_effect": { "type": "string", "minLength": 1 },
+
+          "harm_class": {
+            "description": "Worst credible consequence. FIRE and INJURY force human risk acceptance regardless of mitigation, because no LLM judgement should close those out.",
+            "type": "string",
+            "enum": [
+              "no_harm", "nuisance", "data_loss", "board_damage",
+              "component_damage", "battery_damage", "fire", "injury"
+            ]
+          },
+
+          "mitigation_present": { "type": "boolean" },
+          "mitigation": {
+            "description": "Concrete circuit elements, not intentions. 'Fuse F1 500 mA' rather than 'current limiting'.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "detection_method": {
+            "description": "How the fault would be observed during bring-up or in the field.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "residual_risk": { "type": "string" },
+
+          "risk_acceptance": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "required": { "type": "boolean" },
+              "approved_by": {
+                "description": "Human name, or null while unaccepted. Never filled in by an agent.",
+                "anyOf": [
+                  { "$ref": "common.defs.json#/$defs/person" },
+                  { "type": "null" }
+                ]
+              },
+              "approval_id": { "$ref": "common.defs.json#/$defs/identifier" },
+              "date": { "$ref": "common.defs.json#/$defs/date" }
+            }
+          },
+
+          "status": {
+            "type": "string",
+            "enum": ["PASS", "BLOCKED", "ACCEPTED_RISK", "OPEN", "NOT_APPLICABLE"]
+          },
+
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          },
+          "related_findings": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+
+        "allOf": [
+          {
+            "description": "No mitigation means the fault cannot pass on its own; it is BLOCKED until a named human accepts the residual risk.",
+            "if": {
+              "properties": { "mitigation_present": { "const": false } },
+              "required": ["mitigation_present"]
+            },
+            "then": {
+              "properties": {
+                "status": { "enum": ["BLOCKED", "ACCEPTED_RISK", "OPEN", "NOT_APPLICABLE"] }
+              }
+            }
+          },
+          {
+            "description": "Fire and injury outcomes always require explicit human risk acceptance.",
+            "if": {
+              "properties": { "harm_class": { "enum": ["fire", "injury"] } },
+              "required": ["harm_class"]
+            },
+            "then": {
+              "properties": {
+                "risk_acceptance": {
+                  "properties": { "required": { "const": true } },
+                  "required": ["required"]
+                }
+              },
+              "required": ["risk_acceptance"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

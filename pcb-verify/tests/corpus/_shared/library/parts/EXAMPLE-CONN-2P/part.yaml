@@ -1,0 +1,42 @@
+mpn: EXAMPLE-CONN-2P
+manufacturer: Example Connector Corporation
+description: 2-position 2.54 mm vertical header (fictional corpus part)
+category: connector
+
+lifecycle:
+  status: ACTIVE
+  checked_at: '2026-08-17'
+
+sources:
+  - source_id: EX-CN-0002
+    kind: datasheet
+    title: EXAMPLE-CONN-2P 2-position 2.54 mm pitch vertical header
+    manufacturer: Example Connector Corporation
+    revision: '1.0'
+    document_number: EX-CN-0002
+    local_path: tests/corpus/_shared/datasheets/EXAMPLE-CONN-2P.txt
+    sha256: d95cad7c3d8ec8bd3476764bf7a2756c11348a9f557d786ab499f9afbf04b51a
+    retrieved_at: '2026-08-17'
+    evidence_level: A
+    extracted_text_path: tests/corpus/_shared/datasheets/EXAMPLE-CONN-2P.txt
+
+packages:
+  - package: CONN-1x02-P2.54
+    pin_count: 2
+    pin_table: pins.yaml
+    kicad:
+      symbol: pcbv_example:EXAMPLE-CONN-2P
+      footprint: pcbv_example:CONN-1x02-P2.54
+    land_pattern_evidence:
+      - source_id: EX-CN-0002
+        section: Section 2 Pin Assignment
+        snippet: 'Table 2-1  Contact numbering'
+
+suppliers:
+  - name: Example Distributor
+    supplier_part_number: EXD-000002
+    checked_at: '2026-08-17'
+    stock: 88000
+    status: AVAILABLE_AT_CHECK_TIME
+    assembly_supported: true
+    basket: basic

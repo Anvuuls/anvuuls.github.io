@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/calculation.schema.json",
+  "title": "Calculation provenance",
+  "description": "engineering/calculations/*.yaml. Every input names the requirement or calculation it came from, so a changed datasheet value marks dependents stale and forces a re-run. Results are computed by pcbv.calc, never by a language model doing arithmetic in prose.",
+  "type": "object",
+  "required": ["schema_version", "calculations"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "calculations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["calculation_id", "formula", "inputs", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "calculation_id": { "$ref": "common.defs.json#/$defs/identifier" },
+          "title": { "type": "string" },
+
+          "formula": {
+            "type": "object",
+            "required": ["type", "expression"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "description": "Named formula implemented and unit-tested in pcbv.calc. Free-form expressions are not evaluated: the type selects vetted code, and the expression is documentation.",
+                "type": "string",
+                "enum": [
+                  "linear_regulator_dissipation",
+                  "resistive_dissipation",
+                  "generic_power",
+                  "led_series_resistor",
+                  "crystal_load_capacitor",
+                  "divider_output",
+                  "rc_cutoff",
+                  "capacitor_effective_derated",
+                  "regulator_margin",
+                  "thermal_junction_rise",
+                  "i2c_pullup_range",
+                  "trace_current_temperature_rise"
+                ]
+              },
+              "expression": { "type": "string", "minLength": 3 },
+              "reference": {
+                "description": "Where the formula comes from, when not elementary.",
+                "type": "array",
+                "items": { "$ref": "common.defs.json#/$defs/citation" }
+              }
+            }
+          },
+
+          "inputs": {
+            "description": "Named inputs. Each carries the quantity AND its provenance; an input with neither a source_requirement nor a source_calculation is only permitted when marked assumption:true.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "object",
+              "required": ["value", "unit"],
+              "additionalProperties": false,
+              "properties": {
+                "value": { "type": "number" },
+                "unit": { "$ref": "common.defs.json#/$defs/unit" },
+                "source_requirement": { "$ref": "common.defs.json#/$defs/requirement_id" },
+                "source_calculation": { "$ref": "common.defs.json#/$defs/identifier" },
+                "source_project_field": {
+                  "description": "JSON Pointer into project.yaml, for values that are design intent rather than datasheet fact.",
+                  "type": "string",
+                  "pattern": "^/"
+                },
+                "assumption": {
+                  "description": "True marks a value with no authoritative source. Assumptions are permitted but visible, and a CRITICAL calculation resting on one cannot reach VERIFIED.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "assumption_rationale": { "type": "string" },
+                "worst_case": {
+                  "description": "Which end of the tolerance band this represents. Worst-case analysis is the default; 'typical' inputs are flagged in reports.",
+                  "type": "string",
+                  "enum": ["min", "typical", "max", "exact"]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "not": {
+                      "anyOf": [
+                        { "required": ["source_requirement"] },
+                        { "required": ["source_calculation"] },
+                        { "required": ["source_project_field"] }
+                      ]
+                    }
+                  },
+                  "then": {
+                    "properties": { "assumption": { "const": true } },
+                    "required": ["assumption", "assumption_rationale"]
+                  }
+                }
+              ]
+            }
+          },
+
+          "result": {
+            "description": "Computed output. Written by pcbv.calc; a hand-edited result is a defect.",
+            "type": "object",
+            "required": ["value", "unit"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "number" },
+              "unit": { "$ref": "common.defs.json#/$defs/unit" },
+              "computed_at": { "type": "string" },
+              "inputs_digest": {
+                "description": "Digest over the input set. A mismatch against a recomputation marks this calculation STALE.",
+                "type": "string"
+              }
+            }
+          },
+
+          "limit": {
+            "description": "Optional limit the result is compared against, with its own provenance.",
+            "type": "object",
+            "required": ["value", "unit", "relation"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "number" },
+              "unit": { "$ref": "common.defs.json#/$defs/unit" },
+              "relation": { "type": "string", "enum": ["max", "min"] },
+              "source_requirement": { "$ref": "common.defs.json#/$defs/requirement_id" },
+              "margin_required": { "$ref": "common.defs.json#/$defs/quantity" }
+            }
+          },
+
+          "status": {
+            "type": "string",
+            "enum": ["OK", "MARGINAL", "EXCEEDED", "STALE", "BLOCKED_UNKNOWN_INPUT"]
+          },
+
+          "depends_on": {
+            "description": "Other calculation IDs feeding this one. Used to propagate staleness.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/identifier" }
+          },
+
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

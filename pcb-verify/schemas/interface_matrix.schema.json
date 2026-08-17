@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/interface_matrix.schema.json",
+  "title": "Interface matrix",
+  "description": "engineering/interface_matrix.yaml. One entry per bus, listing every participant with its rail and logic thresholds. Address collisions, duplicate chip selects, parallel pull-ups and level mismatches all fall out of this table by arithmetic.",
+  "type": "object",
+  "required": ["schema_version", "buses"],
+  "additionalProperties": false,
+
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+
+    "buses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bus", "protocol", "controller", "participants"],
+        "additionalProperties": false,
+        "properties": {
+          "bus": { "$ref": "common.defs.json#/$defs/identifier" },
+          "protocol": {
+            "type": "string",
+            "enum": ["i2c", "spi", "uart", "usb", "sdio", "i2s", "can", "onewire", "parallel", "swd", "jtag"]
+          },
+
+          "controller": {
+            "type": "object",
+            "required": ["refdes"],
+            "additionalProperties": false,
+            "properties": {
+              "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+              "io_voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+              "voh_min": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "vol_max": { "$ref": "common.defs.json#/$defs/verified_value" }
+            }
+          },
+
+          "bus_voltage": {
+            "description": "Voltage the bus idles at, set by the pull-up rail for open-drain buses.",
+            "$ref": "common.defs.json#/$defs/quantity"
+          },
+          "max_speed": { "$ref": "common.defs.json#/$defs/verified_value" },
+
+          "pull_ups": {
+            "description": "Every pull-up on the bus. More than one set per line is the classic accidental-parallel-pull-up defect, which this list makes countable.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["refdes", "line", "value", "rail"],
+              "additionalProperties": false,
+              "properties": {
+                "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+                "line": { "type": "string" },
+                "value": { "$ref": "common.defs.json#/$defs/quantity" },
+                "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+                "location": {
+                  "type": "string",
+                  "enum": ["on_board", "on_module", "on_breakout", "in_cable", "unknown"]
+                },
+                "populated": { "type": "boolean", "default": true }
+              }
+            }
+          },
+
+          "bus_capacitance_estimate": { "$ref": "common.defs.json#/$defs/quantity" },
+
+          "participants": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["refdes", "role"],
+              "additionalProperties": false,
+              "properties": {
+                "refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+                "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+                "role": {
+                  "type": "string",
+                  "enum": ["controller", "target", "peripheral", "monitor", "connector"]
+                },
+                "rail": { "$ref": "common.defs.json#/$defs/identifier" },
+                "io_voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+                "vih_min": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "vil_max": { "$ref": "common.defs.json#/$defs/verified_value" },
+                "absolute_max_pin_voltage": { "$ref": "common.defs.json#/$defs/verified_value" },
+
+                "i2c_address": {
+                  "description": "7-bit address as written, e.g. '0x48'. Collisions are detected across the bus.",
+                  "type": "string",
+                  "pattern": "^0x[0-9a-fA-F]{2}$"
+                },
+                "i2c_address_configurable": { "type": "boolean", "default": false },
+                "clock_stretching": { "type": "boolean" },
+
+                "chip_select": {
+                  "description": "SPI chip-select net. Must be unique per bus.",
+                  "type": "string"
+                },
+                "cs_idle_state": {
+                  "type": "string",
+                  "enum": ["HIGH", "LOW", "FLOATING", "UNKNOWN"]
+                },
+                "spi_mode": { "type": "integer", "minimum": 0, "maximum": 3 },
+
+                "external_connector": {
+                  "description": "True when this participant leaves the board, which makes protection mandatory.",
+                  "type": "boolean",
+                  "default": false
+                },
+                "protection": {
+                  "type": "array",
+                  "items": { "$ref": "common.defs.json#/$defs/refdes" }
+                },
+                "level_shifter": { "$ref": "common.defs.json#/$defs/refdes" }
+              }
+            }
+          },
+
+          "layout_constraints": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+
+          "status": {
+            "type": "string",
+            "enum": ["OK", "CONFLICT", "UNVERIFIED", "BLOCKED"]
+          }
+        }
+      }
+    }
+  }
+}

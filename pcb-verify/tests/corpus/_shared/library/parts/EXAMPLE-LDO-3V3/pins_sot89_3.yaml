@@ -1,0 +1,45 @@
+# Pin table for the SOT-89-3 package ONLY.
+#
+# Note how thoroughly this differs from the SOT-23-5 table: pin 1 is GND here and VIN
+# there. Sharing one table between the two packages would put the supply on ground.
+
+mpn: EXAMPLE-LDO-3V3
+package: SOT-89-3
+
+source:
+  source_id: EX-DS-0042
+  section: Section 4 Pin Configuration and Functions
+  table: Table 4-2
+  transcribed_by: corpus fixture
+  transcribed_at: '2026-08-17'
+
+pins:
+  - number: '1'
+    name: GND
+    type: ground
+    function: Device ground, common with mounting tab
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-2
+        snippet: '1     GND     ground      Device ground. Electrically common with the mounting tab.'
+
+  - number: '2'
+    name: VIN
+    type: power_in
+    function: Unregulated supply input
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-2
+        snippet: '2     VIN     power_in    Unregulated supply input.'
+
+  - number: '3'
+    name: VOUT
+    type: power_out
+    function: Regulated 3.3 V output
+    must_connect: true
+    evidence:
+      - source_id: EX-DS-0042
+        table: Table 4-2
+        snippet: '3     VOUT    power_out   Regulated 3.3 V output.'

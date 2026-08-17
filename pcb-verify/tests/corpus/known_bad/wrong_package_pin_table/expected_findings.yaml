@@ -1,0 +1,126 @@
+design: wrong_package_pin_table
+kind: known_bad
+derived_from: minimal_ldo
+
+description: >
+  U1 declares Package SOT-89-3 while still drawn with the five-pin SOT-23-5 symbol and
+  assigned the SOT-23-5 footprint. The part record therefore selects the SOT-89-3 pin
+  table, in which pin 1 is GND and pin 2 is VIN -- the reverse of the SOT-23-5 numbering.
+
+defect_injected: >
+  U1's Package property changed from SOT-23-5 to SOT-89-3. Nothing else altered: same
+  symbol, same footprint, same connectivity.
+
+# This case exists to prove that pin tables are genuinely package-qualified. Both packages
+# are legitimate orderable variants of one MPN, and the datasheet states outright that their
+# pin numbering differs. A pipeline that keyed pin data by part family instead of by package
+# would compare against whichever table it happened to load, find the five-pin symbol
+# consistent with the five-pin table, and report a clean pass -- while the physical part has
+# the supply on the pin the design grounds. One property being wrong cascades into eleven
+# findings, which is the correct behaviour: a package mismatch invalidates every pin-level
+# conclusion at once, and each finding names a specific disagreement rather than one vague
+# complaint.
+
+exhaustive: true
+
+expect:
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_BINDING_MISMATCH
+    component: U1
+    severity: CRITICAL
+    max_count: 1
+    why: The record binds SOT-89-3 to EXAMPLE-LDO-3V3-SOT89, but the schematic uses the 5-pin symbol.
+
+  - check_id: CHK-PIN-MAP
+    code: FOOTPRINT_BINDING_MISMATCH
+    component: U1
+    severity: CRITICAL
+    max_count: 1
+    why: The record binds SOT-89-3 to the SOT-89-3 land pattern, but SOT-23-5 is assigned.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_COUNT_MISMATCH
+    component: U1
+    severity: CRITICAL
+    max_count: 1
+    why: Five symbol pins against a three-pin package table.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: U1
+    pin: '1'
+    severity: CRITICAL
+    why: SOT-89-3 pin 1 is GND; the symbol calls pin 1 VIN. Supply and ground are transposed.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: U1
+    pin: '2'
+    severity: CRITICAL
+    why: SOT-89-3 pin 2 is VIN; the symbol calls pin 2 GND.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_NAME_MISMATCH
+    component: U1
+    pin: '3'
+    severity: CRITICAL
+    why: SOT-89-3 pin 3 is VOUT; the symbol calls pin 3 EN.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_TYPE_MISMATCH
+    component: U1
+    pin: '3'
+    severity: MEDIUM
+    why: >
+      power_out against an input pin. Note that pin 1 does NOT produce a type finding --
+      the table says 'ground' and the symbol says 'power_in', which is the universal KiCad
+      convention for grounds and is accepted deliberately.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_EXTRA
+    component: U1
+    pin: '4'
+    severity: CRITICAL
+    why: The three-pin package has no pin 4.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_PIN_EXTRA
+    component: U1
+    pin: '5'
+    severity: CRITICAL
+    why: The three-pin package has no pin 5.
+
+  - check_id: CHK-PIN-MAP
+    code: FOOTPRINT_PAD_EXTRA
+    component: U1
+    pin: '4'
+    severity: HIGH
+    why: The assigned SOT-23-5 land pattern has pads the declared package does not.
+
+  - check_id: CHK-PIN-MAP
+    code: FOOTPRINT_PAD_EXTRA
+    component: U1
+    pin: '5'
+    severity: HIGH
+    why: As above for pad 5.
+
+forbid:
+  - check_id: CHK-PIN-MAP
+    code: PIN_TABLE_MISSING
+    component: U1
+    why: >
+      SOT-89-3 is a real package in the record with its own pin table. The checker must
+      compare against it, not give up -- a missing-table finding here would mean the
+      package-qualified lookup silently failed.
+
+  - check_id: CHK-PIN-MAP
+    code: PACKAGE_NOT_IN_PART_RECORD
+    component: U1
+    why: SOT-89-3 is declared in the part record; this is a wrong-package defect, not an unknown-package one.
+
+  - check_id: CHK-PIN-MAP
+    code: SYMBOL_FOOTPRINT_PAD_MISMATCH
+    component: U1
+    why: >
+      The 5-pin symbol and the SOT-23-5 footprint still agree with each other. Only the
+      declared package disagrees with both, which is what makes the defect subtle.

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/pins.schema.json",
+  "title": "Package-qualified pin table",
+  "description": "library/parts/<MPN>/pins.yaml. The authoritative pin table transcribed from the manufacturer's pin list, qualified by package. A different package variant is a different table until proven identical -- QFN and LQFP versions of one die routinely number differently, and assuming otherwise silently poisons every pin check downstream.",
+  "type": "object",
+  "required": ["mpn", "package", "source", "pins"],
+  "additionalProperties": false,
+
+  "properties": {
+    "mpn": { "$ref": "common.defs.json#/$defs/mpn" },
+
+    "package": {
+      "description": "Must match a package entry in part.yaml.",
+      "$ref": "common.defs.json#/$defs/package_name"
+    },
+
+    "identical_to_package": {
+      "description": "Set only when the manufacturer explicitly states pin numbering is identical to another package, with a citation proving it. Never inferred.",
+      "type": "object",
+      "required": ["package", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "package": { "$ref": "common.defs.json#/$defs/package_name" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "common.defs.json#/$defs/citation" }
+        }
+      }
+    },
+
+    "source": {
+      "description": "Where this pin table was transcribed from, including the page and table so a reviewer can re-check it in one step.",
+      "type": "object",
+      "required": ["source_id"],
+      "additionalProperties": false,
+      "properties": {
+        "source_id": { "$ref": "common.defs.json#/$defs/identifier" },
+        "page": { "type": "integer", "minimum": 1 },
+        "section": { "type": "string" },
+        "table": { "type": "string" },
+        "transcribed_by": { "type": "string" },
+        "transcribed_at": { "$ref": "common.defs.json#/$defs/date" }
+      }
+    },
+
+    "pins": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["number", "name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "description": "Pad/pin number exactly as the manufacturer prints it. Always a string: BGA numbering is alphanumeric (A1, B12) and exposed pads are often numbered oddly, so numeric typing would corrupt them.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8
+          },
+          "name": {
+            "description": "Primary pin name from the manufacturer pin list.",
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "description": "Electrical character of the pin, used for logic-level and driver-conflict checks.",
+            "type": "string",
+            "enum": [
+              "power_in", "power_out", "ground", "input", "output", "bidirectional",
+              "tri_state", "open_drain", "open_collector", "passive", "analog_in",
+              "analog_out", "rf", "crystal", "no_connect", "reserved", "thermal_pad",
+              "unspecified"
+            ]
+          },
+          "aliases": {
+            "description": "Other names the manufacturer uses for the same pin.",
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "function": { "type": "string" },
+          "alternate_functions": { "type": "array", "items": { "type": "string" } },
+          "boot_strap": {
+            "description": "True if this pin's level at reset selects a boot or configuration mode. Drives the boot/strap conflict check.",
+            "type": "boolean",
+            "default": false
+          },
+          "internal_pull": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "direction": { "type": "string", "enum": ["up", "down", "none", "unknown"] },
+              "value": { "$ref": "common.defs.json#/$defs/verified_value" },
+              "enabled_by_default": { "type": ["boolean", "null"] }
+            }
+          },
+          "must_connect": {
+            "description": "Manufacturer requires this pin to be connected (e.g. a second VDD, or an exposed pad that is the only ground return). Absence of a connection is then an error, not a warning.",
+            "type": "boolean",
+            "default": false
+          },
+          "no_connect_reusable": {
+            "description": "Whether an NC pad may be repurposed. Defaults false: NC pads are frequently internally bonded, and assuming otherwise is a classic dead-board cause.",
+            "type": "boolean",
+            "default": false
+          },
+          "evidence": {
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/citation" }
+          }
+        }
+      }
+    }
+  }
+}

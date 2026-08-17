@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/expected_findings.schema.json",
+  "title": "Expected findings for a corpus case",
+  "description": "The contract for one test design in tests/corpus. This file is what makes the verification suite itself testable: a check is not trusted until a known-bad case proves it fires and a known-good case proves it does not false-positive. Adding a check without a corpus case is not allowed.",
+  "type": "object",
+  "required": ["design", "kind", "description", "expect"],
+  "additionalProperties": false,
+
+  "properties": {
+    "design": {
+      "description": "Directory name of the case. Must match its folder so a mismatch is caught rather than silently testing the wrong design.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "kind": {
+      "type": "string",
+      "enum": ["known_good", "known_bad"]
+    },
+
+    "description": { "type": "string", "minLength": 1 },
+
+    "defect_injected": {
+      "description": "For known_bad cases: the single defect deliberately introduced, in plain language. Each case injects exactly one defect so a firing check proves that specific detection rather than a general smell.",
+      "type": "string"
+    },
+
+    "derived_from": {
+      "description": "The known_good case this was copied from. Keeping the diff to one defect is what makes the fixture reviewable.",
+      "type": "string"
+    },
+
+    "exhaustive": {
+      "description": "When true, findings beyond those expected fail the test. Known-good cases set this with an empty expect list to assert a genuinely clean run.",
+      "type": "boolean",
+      "default": false
+    },
+
+    "expect": {
+      "description": "Findings that MUST be produced. Matching is on stable fields (check_id, code, component), never on message wording.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "code"],
+        "additionalProperties": false,
+        "properties": {
+          "check_id": { "$ref": "common.defs.json#/$defs/check_id" },
+          "code": { "$ref": "common.defs.json#/$defs/finding_code" },
+          "component": { "$ref": "common.defs.json#/$defs/refdes" },
+          "pin": { "type": "string" },
+          "net": { "type": "string" },
+          "signal": { "type": "string" },
+          "severity": { "$ref": "common.defs.json#/$defs/severity" },
+          "min_count": { "type": "integer", "minimum": 1, "default": 1 },
+          "max_count": { "type": "integer", "minimum": 1 },
+          "message_contains": {
+            "description": "Optional substring assertion. Use sparingly: matching on prose makes tests brittle.",
+            "type": "string"
+          },
+          "why": {
+            "description": "Why a correct checker must report this. Documents intent for whoever debugs a regression later.",
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "forbid": {
+      "description": "Findings that must NOT appear, e.g. asserting a defect does not trigger unrelated checks.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id"],
+        "additionalProperties": false,
+        "properties": {
+          "check_id": { "$ref": "common.defs.json#/$defs/check_id" },
+          "code": { "$ref": "common.defs.json#/$defs/finding_code" },
+          "component": { "$ref": "common.defs.json#/$defs/refdes" },
+          "why": { "type": "string" }
+        }
+      }
+    },
+
+    "not_yet_detected": {
+      "description": "Defects known to be present that no implemented check catches yet. Recorded rather than deleted so the corpus tracks real coverage gaps instead of hiding them; tests report these as expected gaps and fail if one starts passing silently.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "planned_check"],
+        "additionalProperties": false,
+        "properties": {
+          "description": { "type": "string" },
+          "planned_check": { "$ref": "common.defs.json#/$defs/check_id" },
+          "planned_phase": { "type": "integer", "minimum": 0, "maximum": 6 }
+        }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "known_bad" } }, "required": ["kind"] },
+      "then": {
+        "required": ["defect_injected"],
+        "description": "A known_bad case must state its defect and must assert at least one finding or record why none is detected yet.",
+        "anyOf": [
+          { "properties": { "expect": { "minItems": 1 } } },
+          { "properties": { "not_yet_detected": { "minItems": 1 } }, "required": ["not_yet_detected"] }
+        ]
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "known_good" } }, "required": ["kind"] },
+      "then": {
+        "description": "A known_good case exists to catch false positives, so it must assert exhaustively that nothing fires.",
+        "properties": {
+          "exhaustive": { "const": true },
+          "expect": { "maxItems": 0 }
+        },
+        "required": ["exhaustive"]
+      }
+    }
+  ]
+}

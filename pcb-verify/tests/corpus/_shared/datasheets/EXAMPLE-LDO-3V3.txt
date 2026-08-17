@@ -1,0 +1,71 @@
+EXAMPLE SEMICONDUCTOR
+EXAMPLE-LDO-3V3  --  150 mA Low-Dropout Linear Regulator, Fixed 3.3 V
+Document EX-DS-0042  Revision 2.1
+
+This is a FICTIONAL part used by the pcb-verify test corpus. It exists so that corpus
+fixtures can carry real, greppable citations with a real content hash instead of
+placeholder text. No such device is manufactured, and none of these numbers should be
+used in a real design.
+
+--------------------------------------------------------------------------------
+Section 1  Absolute Maximum Ratings
+--------------------------------------------------------------------------------
+Input voltage VIN to GND ............. -0.3 V to 6.5 V
+Enable voltage EN to GND ............. -0.3 V to VIN + 0.3 V
+Operating junction temperature ....... -40 C to 125 C
+
+These are stress ratings only. Operation at or beyond these limits may damage the
+device and is not implied by any other specification in this document.
+
+--------------------------------------------------------------------------------
+Section 2  Recommended Operating Conditions
+--------------------------------------------------------------------------------
+Input voltage range VIN .............. 3.6 V to 5.5 V
+Output current IOUT .................. 0 mA to 150 mA
+Ambient temperature TA ............... -40 C to 85 C
+
+--------------------------------------------------------------------------------
+Section 3  Electrical Characteristics
+--------------------------------------------------------------------------------
+Output voltage VOUT .................. 3.267 V to 3.333 V (1 percent)
+Dropout voltage at 150 mA ............ 260 mV typical, 400 mV maximum
+Quiescent current .................... 55 uA typical
+Enable threshold high VIH ............ 1.2 V minimum
+Enable threshold low VIL ............. 0.4 V maximum
+
+--------------------------------------------------------------------------------
+Section 4  Pin Configuration and Functions
+--------------------------------------------------------------------------------
+Table 4-1  SOT-23-5 package (package code DBV)
+
+Pin   Name    Type        Description
+1     VIN     power_in    Unregulated supply input. Requires a 1 uF ceramic input
+                          capacitor connected between VIN and GND.
+2     GND     ground      Device ground and reference for the output voltage.
+3     EN      input       Enable input, active high. Do not leave EN floating; the
+                          device state is undefined with EN open.
+4     NC      no_connect  No internal connection. Do not connect. This pad is not
+                          internally bonded and must not be repurposed as a via or
+                          routing channel.
+5     VOUT    power_out   Regulated 3.3 V output. Requires a 1 uF ceramic output
+                          capacitor connected between VOUT and GND.
+
+Table 4-2  SOT-89-3 package (package code KTT)
+
+Pin numbering in the SOT-89-3 package differs from the SOT-23-5 package. The two
+packages are not pin compatible and their pin tables must not be interchanged.
+
+Pin   Name    Type        Description
+1     GND     ground      Device ground. Electrically common with the mounting tab.
+2     VIN     power_in    Unregulated supply input.
+3     VOUT    power_out   Regulated 3.3 V output.
+
+--------------------------------------------------------------------------------
+Section 5  Application Information
+--------------------------------------------------------------------------------
+A 1 uF ceramic capacitor is required at VIN and a 1 uF ceramic capacitor is required
+at VOUT. Place both capacitors within 5 mm of the device pins. X5R or X7R dielectric
+is recommended; account for DC bias derating when selecting the capacitor case size.
+
+The EN pin has no internal pull-up or pull-down. An external resistor is required to
+define the state of EN before firmware runs.

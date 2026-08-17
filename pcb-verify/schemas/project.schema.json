@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbv.local/schemas/project.schema.json",
+  "title": "Project requirements",
+  "description": "Structured project input. Gate applicability is DERIVED from this file: absence of an 'rf' section makes the RF gate NOT_APPLICABLE automatically, so no agent can hand-wave a gate away.",
+  "type": "object",
+  "required": ["project", "pcb", "power", "reviewers"],
+  "additionalProperties": false,
+
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name", "revision"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "schematic_root": {
+          "description": "Path to the human-drawn top-level .kicad_sch, relative to the project directory.",
+          "type": "string"
+        },
+        "operating_temperature": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": { "$ref": "common.defs.json#/$defs/quantity" },
+            "max": { "$ref": "common.defs.json#/$defs/quantity" }
+          }
+        }
+      }
+    },
+
+    "reviewers": {
+      "description": "Roster of humans permitted to sign approvals and waivers. CI rejects an approval whose reviewer is not on this list, which is what stops an agent from inventing an approver.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "role"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "$ref": "common.defs.json#/$defs/person" },
+          "role": { "type": "string" },
+          "may_approve": {
+            "description": "Gate IDs this person may sign off. Omit for any gate.",
+            "type": "array",
+            "items": { "$ref": "common.defs.json#/$defs/identifier" }
+          }
+        }
+      }
+    },
+
+    "pcb": {
+      "type": "object",
+      "required": ["layers"],
+      "additionalProperties": false,
+      "properties": {
+        "layers": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "thickness": { "$ref": "common.defs.json#/$defs/quantity" },
+        "copper_weight_outer": { "$ref": "common.defs.json#/$defs/quantity" },
+        "manufacturer": { "type": "string" },
+        "controlled_impedance": { "type": "boolean", "default": false },
+        "stackup_documented": { "type": "boolean", "default": false }
+      }
+    },
+
+    "rail_naming": {
+      "description": "Declared rail identities and their permitted net-name aliases. Any rail-like net not covered here is a lint error, which is how 3V3 / +3V3 / 3.3V / VDD_3V3 drift gets caught.",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Z0-9_+.-]{2,24}$": {
+          "type": "object",
+          "required": ["net"],
+          "additionalProperties": false,
+          "properties": {
+            "net": {
+              "description": "The single canonical net name in the schematic.",
+              "type": "string",
+              "minLength": 2
+            },
+            "aliases": {
+              "description": "Intentionally permitted alternative spellings. Empty means the canonical name is the only legal one.",
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            }
+          }
+        }
+      }
+    },
+
+    "power": {
+      "type": "object",
+      "required": ["sources", "rails"],
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "$ref": "common.defs.json#/$defs/identifier" },
+              "kind": {
+                "type": "string",
+                "enum": ["usb_c", "usb_a", "barrel", "header", "lipo", "liion", "primary_cell", "poe", "wireless"]
+              },
+              "voltage_min": { "$ref": "common.defs.json#/$defs/quantity" },
+              "voltage_max": { "$ref": "common.defs.json#/$defs/quantity" },
+              "current_limit": { "$ref": "common.defs.json#/$defs/quantity" }
+            }
+          }
+        },
+        "rails": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "voltage"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "$ref": "common.defs.json#/$defs/identifier" },
+              "voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+              "tolerance": { "$ref": "common.defs.json#/$defs/quantity" },
+              "source_refdes": { "$ref": "common.defs.json#/$defs/refdes" },
+              "parent_rail": { "$ref": "common.defs.json#/$defs/identifier" }
+            }
+          }
+        },
+        "margins": {
+          "description": "Project-specific engineering margins. The 25% continuous default is a starting point, not a law.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "continuous": { "$ref": "common.defs.json#/$defs/quantity" },
+            "peak": { "$ref": "common.defs.json#/$defs/quantity" }
+          }
+        }
+      }
+    },
+
+    "battery": {
+      "description": "Presence of this section makes the BATTERY gate applicable and, for lithium chemistries, makes human approval mandatory.",
+      "type": "object",
+      "required": ["chemistry"],
+      "additionalProperties": false,
+      "properties": {
+        "chemistry": {
+          "type": "string",
+          "enum": ["lipo", "liion", "lifepo4", "nimh", "alkaline", "coin_cell"]
+        },
+        "rechargeable": { "type": "boolean", "default": true },
+        "capacity": { "$ref": "common.defs.json#/$defs/quantity" },
+        "charge_current": { "$ref": "common.defs.json#/$defs/quantity" },
+        "protection_in_pack": { "type": "boolean" },
+        "temperature_monitoring": { "type": "boolean" }
+      }
+    },
+
+    "interfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["USB_2_LS", "USB_2_FS", "USB_2_HS", "USB_3"]
+            },
+            "connector": { "type": "string", "enum": ["usb_c", "micro_b", "mini_b", "type_a"] },
+            "role": { "type": "string", "enum": ["device", "host", "dual_role"] },
+            "power_delivery": { "type": "boolean", "default": false },
+            "esd_protection_required": { "type": "boolean", "default": true }
+          }
+        },
+        "i2c": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bus"],
+            "additionalProperties": false,
+            "properties": {
+              "bus": { "$ref": "common.defs.json#/$defs/identifier" },
+              "voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+              "speed": { "$ref": "common.defs.json#/$defs/quantity" },
+              "devices": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "spi": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bus"],
+            "additionalProperties": false,
+            "properties": {
+              "bus": { "$ref": "common.defs.json#/$defs/identifier" },
+              "voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+              "speed": { "$ref": "common.defs.json#/$defs/quantity" },
+              "devices": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "uart": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bus"],
+            "additionalProperties": false,
+            "properties": {
+              "bus": { "$ref": "common.defs.json#/$defs/identifier" },
+              "voltage": { "$ref": "common.defs.json#/$defs/quantity" },
+              "external": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "sd_card": { "type": "boolean", "default": false },
+        "display": { "type": "boolean", "default": false }
+      }
+    },
+
+    "rf": {
+      "description": "Presence makes the RF gate applicable and requires human approval. Absence makes it NOT_APPLICABLE by derivation.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wifi": { "type": "boolean", "default": false },
+        "bluetooth": { "type": "boolean", "default": false },
+        "nfc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "frequency": { "$ref": "common.defs.json#/$defs/quantity" } }
+        },
+        "subghz": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "frequency": { "$ref": "common.defs.json#/$defs/quantity" } }
+        },
+        "implementation": {
+          "description": "The single highest-leverage regulatory decision available at schematic stage.",
+          "type": "string",
+          "enum": ["precertified_module", "bare_rf_ic", "mixed"]
+        }
+      }
+    },
+
+    "loads": {
+      "description": "Load classes that make extra gates applicable and may require human approval.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "motor": { "type": "boolean", "default": false },
+        "solenoid": { "type": "boolean", "default": false },
+        "relay": { "type": "boolean", "default": false },
+        "speaker": { "type": "boolean", "default": false },
+        "high_current": { "type": "boolean", "default": false },
+        "high_voltage": { "type": "boolean", "default": false }
+      }
+    },
+
+    "analog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adc": { "type": "boolean", "default": false },
+        "dac": { "type": "boolean", "default": false },
+        "precision_reference": { "type": "boolean", "default": false }
+      }
+    },
+
+    "programming": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "interfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["swd", "jtag", "uart_bootloader", "usb_dfu", "usb_bootloader", "icsp", "tag_connect", "pogo"]
+          }
+        },
+        "required_test_points": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "manufacturing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assembly": { "type": "string" },
+        "preferred_supplier": { "type": "string" },
+        "min_passive_size": { "type": "string" }
+      }
+    },
+
+    "policy": {
+      "description": "Project-level overrides of enforcement policy. Defaults are the strict ones.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_evidence_level": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "CRITICAL": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/evidence_level" } },
+            "HIGH": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/evidence_level" } },
+            "MEDIUM": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/evidence_level" } },
+            "LOW": { "type": "array", "items": { "$ref": "common.defs.json#/$defs/evidence_level" } }
+          }
+        },
+        "extra_human_approval_gates": {
+          "type": "array",
+          "items": { "$ref": "common.defs.json#/$defs/identifier" }
+        }
+      }
+    }
+  }
+}
