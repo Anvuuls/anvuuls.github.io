@@ -4,6 +4,11 @@ This directory verifies **human-drawn KiCad schematics**. It does not generate t
 
 Read this file before touching anything in `pcb-verify/`.
 
+**Context you will need:** `docs/SPECIFICATION.md` is the charter this implementation answers
+to. `docs/DECISIONS.md` records why each rule below exists and what would justify changing
+it — consult it before overriding anything here, because several rules look arbitrary until
+you know what they are defending against. `docs/ROADMAP.md` says what to build next.
+
 ## Phase discipline
 
 We are in the **verification-first** phase.

@@ -12,6 +12,19 @@ human draws in KiCad  ->  normalize  ->  deterministic checks  ->  findings
              human fixes  <-  agent/human interprets  <--------------+
 ```
 
+## Where things are written down
+
+| Document | What it holds |
+|---|---|
+| [`docs/SPECIFICATION.md`](docs/SPECIFICATION.md) | The charter — what this system must do, set by the project owner |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Why it looks like this: alternatives rejected, and what would justify revisiting each |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What is built, what is next, and the 26 known-bad cases (3 exist) |
+| [`CLAUDE.md`](CLAUDE.md) | The engineering rules — read before changing anything |
+| [`LOCAL_SETUP.md`](LOCAL_SETUP.md) | Running it on your own machine |
+
+New here? Read `SPECIFICATION.md` for intent, then `DECISIONS.md` for why the implementation
+diverges from the obvious approach in several places.
+
 ## Quick start
 
 ```bash
